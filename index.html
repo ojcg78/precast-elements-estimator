@@ -5,93 +5,127 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Precast Elements Estimator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --concrete:#EAE6DF; --paper:#FBFAF7; --ink:#22242A; --ink-soft:#4A4E57;
-  --rust:#B5502F; --rust-soft:#F0DCD2; --steel:#3E6480; --steel-soft:#DCE6EC;
-  --line:#DAD5CC; --good:#3E6B52; --bad:#B5502F;
+  --paper:#F4F6F7; --panel:#FFFFFF; --line:#C7D0D6; --line-strong:#8FA0AC;
+  --ink:#1C2B36; --dim:#5D6E78; --blue:#1B3A5C; --blue-soft:#E4EBF0;
+  --red:#B23A2E; --good:#2F7D4F; --amber-bg:#FBEBCE; --amber-line:#D8A83D; --amber-ink:#7A5A17;
 }
 *{box-sizing:border-box;}
-body{ margin:0; background:var(--concrete); color:var(--ink); font-family:'Inter',sans-serif; }
-::focus-visible{ outline:2px solid var(--rust); outline-offset:2px; }
-::selection{ background:var(--rust-soft); }
+body{ margin:0;
+  background:
+    repeating-linear-gradient(0deg, rgba(27,58,92,.045) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg, rgba(27,58,92,.045) 0 1px, transparent 1px 28px),
+    var(--paper);
+  color:var(--ink); font-family:'IBM Plex Sans',sans-serif; }
+::focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+::selection{ background:var(--blue-soft); }
 
-.topbar{ background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:14px 26px; box-shadow:0 1px 0 rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.12); position:relative; z-index:2; }
-.brand{ display:flex; align-items:center; gap:10px; }
-.brand .mark{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--rust-soft); border:1px solid var(--rust-soft); padding:3px 6px; border-radius:3px; }
-.brand h1{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; margin:0; }
-.proj-chip{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:#C9CDD3; }
-.proj-chip b{ color:#fff; }
+.topbar{ background:var(--panel); border-bottom:3px solid var(--blue); display:flex; align-items:stretch; position:sticky; top:0; z-index:30; height:54px; }
+.brand{ display:flex; align-items:center; gap:12px; padding:13px 26px; border-right:1px solid var(--line); }
+.brand .mark{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--blue); border:1.5px solid var(--blue); padding:3px 7px; border-radius:1px; }
+.brand h1{ font-family:'Archivo',sans-serif; font-weight:700; font-size:19px; margin:0; color:var(--blue); }
+.tb-cell{ padding:13px 22px; border-right:1px solid var(--line); font-family:'IBM Plex Mono',monospace; display:flex; flex-direction:column; justify-content:center; }
+.tb-cell .k{ font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
+.tb-cell .v{ font-size:13px; color:var(--ink); font-weight:500; margin-top:2px; }
+.tb-spacer{ flex:1; }
 
-.shell{ display:grid; grid-template-columns:230px 1fr; min-height:calc(100vh - 54px); }
-.rail{ background:var(--paper); border-right:1px solid var(--line); padding:20px 12px; }
-.navbtn{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; margin-bottom:2px; transition:background-color .15s ease, color .15s ease, transform .1s ease; }
-.navbtn:hover{ background:var(--steel-soft); }
+.shell{ display:grid; grid-template-columns:216px 1fr; min-height:calc(100vh - 54px); }
+.rail{ background:var(--panel); border-right:1px solid var(--line); padding:20px 12px; position:sticky; top:54px; align-self:start; height:calc(100vh - 54px); overflow-y:auto; }
+.navbtn{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:2px; border:none; border-left:2px solid transparent; background:transparent; font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; font-weight:500; color:var(--dim); cursor:pointer; margin-bottom:2px; transition:background-color .15s ease, color .15s ease; }
+.navbtn:hover{ background:var(--blue-soft); }
 .navbtn:active{ transform:scale(.98); }
-.navbtn.active{ background:var(--ink); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+.navbtn.active{ background:var(--blue-soft); color:var(--blue); border-left:2px solid var(--blue); font-weight:600; }
 .navbtn[disabled]{ opacity:.45; cursor:not-allowed; }
-.navbtn .tag-soon{ font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.06em; text-transform:uppercase; background:var(--rust-soft); color:var(--rust); padding:2px 5px; border-radius:3px; margin-left:auto; }
+.navbtn .tag-soon{ font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.06em; text-transform:uppercase; background:var(--blue-soft); color:var(--blue); padding:2px 5px; border-radius:2px; margin-left:auto; }
+.navbtn{ justify-content:space-between; }
+.nav-dot{ width:7px; height:7px; border-radius:50%; background:var(--amber-line); flex-shrink:0; }
+.nav-dot.ready{ background:var(--good); }
+.nav-dot.empty{ background:var(--line-strong); }
+
+.field.required label::after{ content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--amber-line); margin-left:6px; vertical-align:middle; }
+.field.required.filled label::after{ background:var(--good); }
+.field.required input, .field.required select{ border-bottom-color:var(--amber-line); }
+.field.required.filled input, .field.required.filled select{ border-bottom-color:var(--line-strong); }
 
 .content{ padding:28px 34px 70px; max-width:1080px; }
 .page{ display:none; }
-.page.active{ display:block; animation:fadeIn .22s ease; }
+.page.active{ display:block; animation:fadeIn .18s ease; }
 @keyframes fadeIn{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:translateY(0); } }
-.eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--rust); }
-.page-head h2{ font-family:'Fraunces',serif; font-size:25px; font-weight:600; margin:4px 0 6px 0; }
-.page-head p{ color:var(--ink-soft); font-size:14px; max-width:640px; line-height:1.5; }
+.eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--blue); }
+.page-head h2{ font-family:'Archivo',sans-serif; font-size:24px; font-weight:700; margin:6px 0 6px 0; color:var(--ink); }
+.page-head p{ color:var(--dim); font-size:14px; max-width:640px; line-height:1.5; }
 
-.card{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:18px; box-shadow:0 1px 2px rgba(30,25,20,.04), 0 6px 18px rgba(30,25,20,.05); transition:box-shadow .18s ease; }
-.card:hover{ box-shadow:0 2px 4px rgba(30,25,20,.05), 0 10px 26px rgba(30,25,20,.07); }
-.card h2{ font-family:'Fraunces',serif; font-size:17px; font-weight:600; margin:0 0 14px 0; }
-.card h3{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin:18px 0 10px 0; padding-top:12px; border-top:1px solid var(--line); }
+.card{ position:relative; background:var(--panel); border:1px solid var(--line-strong); border-radius:2px; padding:20px 22px; margin-bottom:20px; }
+.card > h2:first-child{ font-family:'Archivo',sans-serif; font-size:14px; font-weight:700; margin:-20px -22px 18px -22px; padding:12px 22px; border-bottom:2px solid var(--blue); color:var(--blue); text-transform:uppercase; letter-spacing:.03em; position:sticky; top:54px; z-index:15; background:var(--panel); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.card-tag{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.04em; text-transform:none; color:var(--dim); border:1px solid var(--line-strong); padding:3px 9px; border-radius:2px; background:var(--paper); font-weight:500; white-space:nowrap; }
+.card-tag.ready{ color:var(--good); border-color:var(--good); }
+details.card > summary.card-summary{ position:sticky; top:54px; z-index:15; background:var(--panel); margin:-20px -22px 18px -22px; padding:12px 22px; border-bottom:2px solid var(--blue); display:flex; align-items:center; gap:8px; }
+.reg{ position:absolute; width:10px; height:10px; pointer-events:none; }
+.reg::before{ content:''; position:absolute; left:4.5px; top:0; width:1px; height:10px; background:var(--line-strong); }
+.reg::after{ content:''; position:absolute; top:4.5px; left:0; width:10px; height:1px; background:var(--line-strong); }
+.reg.tl{ top:8px; left:8px; } .reg.tr{ top:8px; right:8px; } .reg.bl{ bottom:8px; left:8px; } .reg.br{ bottom:8px; right:8px; }
+.card h3{ font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:18px 0 10px 0; padding-top:14px; border-top:1px dashed var(--line-strong); }
 .card h3:first-of-type{ border-top:none; padding-top:0; }
 
 .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
 @media (max-width:820px){ .grid3,.grid4{ grid-template-columns:1fr 1fr; } }
-.field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
-.field input, .field select{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:#fff; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); transition:border-color .15s ease, box-shadow .15s ease; }
-.field input:hover, .field select:hover{ border-color:var(--ink-soft); }
-.field input:focus, .field select:focus{ border-color:var(--steel); box-shadow:0 0 0 3px var(--steel-soft); outline:none; }
+.field label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--dim); margin-bottom:5px; }
+.field input, .field select{ width:100%; padding:7px 0 7px 0; border:none; border-bottom:1.5px solid var(--line-strong); border-radius:0; background:transparent; font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:var(--ink); transition:border-color .15s ease; }
+.field input:hover, .field select:hover{ border-bottom-color:var(--blue); }
+.field input:focus, .field select:focus{ border-bottom-color:var(--blue); outline:none; box-shadow:0 1px 0 var(--blue); }
 
-.results-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.results-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:0; border:1px solid var(--line-strong); }
 @media (max-width:820px){ .results-grid{ grid-template-columns:1fr 1fr; } }
-.rbox{ background:var(--steel-soft); border-radius:9px; padding:12px 14px; transition:transform .12s ease; }
-.rbox .lbl{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
-.rbox .val{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; margin-top:4px; transition:color .2s ease; }
-.rbox.total{ background:var(--ink); color:#fff; box-shadow:0 4px 16px rgba(0,0,0,.15); }
-.rbox.total .lbl{ color:#C9CDD3; }
-.rbox.total .val{ color:var(--rust-soft); font-size:22px; }
+.rbox{ background:var(--panel); padding:14px 16px; border-right:1px solid var(--line-strong); }
+.rbox:last-child{ border-right:none; }
+.rbox .lbl{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
+.rbox .val{ font-family:'Archivo',sans-serif; font-size:19px; font-weight:700; margin-top:6px; color:var(--ink); }
+.rbox.total{ background:var(--blue-soft); }
+.rbox.total .lbl{ color:var(--blue); }
+.rbox.total .val{ color:var(--blue); font-size:22px; }
 
 table.costs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
-table.costs th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--line); padding:6px 8px; }
-table.costs td{ padding:7px 8px; border-bottom:1px solid var(--line); transition:background-color .12s ease; }
-table.costs tbody tr:hover td{ background:var(--concrete); }
-table.costs td.num{ text-align:right; font-family:'IBM Plex Mono',monospace; }
-table.costs tr.total td{ font-weight:600; border-top:2px solid var(--ink); border-bottom:none; }
+table.costs th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); border-bottom:2px solid var(--blue); padding:6px 8px; }
+table.costs td{ padding:7px 8px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono',monospace; transition:background-color .12s ease; }
+table.costs tbody tr:hover td{ background:var(--blue-soft); }
+table.costs td.num{ text-align:right; }
+table.costs tr.total td{ font-weight:600; border-top:2px solid var(--blue); border-bottom:none; }
 
-.btn{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:8px; border:1px solid var(--ink); background:var(--ink); color:#fff; cursor:pointer; transition:transform .1s ease, box-shadow .15s ease, background-color .15s ease; }
-.btn:hover{ background:#33363D; box-shadow:0 3px 10px rgba(0,0,0,.18); }
+.cost-chart{ display:flex; align-items:center; gap:24px; padding:16px 0; border-bottom:1px dashed var(--line-strong); margin-bottom:6px; flex-wrap:wrap; }
+.cost-chart svg{ flex-shrink:0; }
+.cost-chart-legend{ display:flex; flex-direction:column; gap:7px; flex:1; min-width:200px; }
+.cost-chart-row{ display:flex; align-items:center; gap:9px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink); }
+.cost-chart-dot{ width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+.cost-chart-row .cc-label{ flex:1; color:var(--dim); text-transform:uppercase; font-size:10.5px; letter-spacing:.03em; }
+.cost-chart-row .cc-pct{ color:var(--ink); font-weight:600; width:44px; text-align:right; }
+.cost-chart-row .cc-val{ color:var(--dim); width:80px; text-align:right; }
+
+.btn{ font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:2px; border:1px solid var(--blue); background:var(--blue); color:#fff; cursor:pointer; transition:transform .1s ease, box-shadow .15s ease, background-color .15s ease; }
+.btn:hover{ background:#122A42; box-shadow:0 3px 10px rgba(27,58,92,.25); }
 .btn:active{ transform:scale(.97); }
-.btn.ghost{ background:transparent; color:var(--ink); }
-.btn.ghost:hover{ background:var(--steel-soft); box-shadow:none; }
+.btn.ghost{ background:transparent; color:var(--blue); }
+.btn.ghost:hover{ background:var(--blue-soft); box-shadow:none; }
 .btn.small{ padding:6px 11px; font-size:12.5px; }
 .btn.flash{ animation:flashSuccess .5s ease; }
-@keyframes flashSuccess{ 0%{ background:var(--good); border-color:var(--good); } 100%{ background:var(--ink); border-color:var(--ink); } }
-.warn-box{ background:#F7ECD9; border:1px solid #E0C089; color:#7A5A17; border-radius:8px; padding:10px 14px; font-size:13px; margin-top:10px; }
-.notice{ background:var(--rust-soft); color:#7A3013; border-radius:8px; padding:14px 16px; font-size:13.5px; line-height:1.5; }
-.hint{ display:inline-block; margin-left:4px; width:15px; height:15px; border-radius:50%; background:var(--line); color:var(--ink-soft); font-size:10.5px; text-align:center; line-height:15px; cursor:help; position:relative; transition:background-color .15s ease; }
-summary.card-summary{ font-family:'Fraunces',serif; font-size:17px; font-weight:600; cursor:pointer; list-style:none; }
+@keyframes flashSuccess{ 0%{ background:var(--good); border-color:var(--good); } 100%{ background:var(--blue); border-color:var(--blue); } }
+.warn-box{ background:var(--amber-bg); border:1px solid var(--amber-line); color:var(--amber-ink); border-radius:2px; padding:10px 14px; font-size:13px; margin-top:10px; font-family:'IBM Plex Sans',sans-serif; }
+.notice{ background:var(--blue-soft); color:var(--blue); border-radius:2px; padding:14px 16px; font-size:13.5px; line-height:1.5; }
+.hint{ display:inline-block; margin-left:4px; width:15px; height:15px; border-radius:50%; border:1px solid var(--line-strong); color:var(--dim); font-size:10.5px; text-align:center; line-height:13px; cursor:help; position:relative; transition:border-color .15s ease, color .15s ease; }
+summary.card-summary{ font-family:'Archivo',sans-serif; font-size:14px; font-weight:700; cursor:pointer; list-style:none; text-transform:uppercase; letter-spacing:.03em; color:var(--blue); }
 summary.card-summary::-webkit-details-marker{ display:none; }
-summary.card-summary::before{ content:'▸'; display:inline-block; margin-right:8px; color:var(--rust); transition:transform .15s ease; font-size:13px; }
-details[open] > summary.card-summary::before{ transform:rotate(90deg); }
-summary.sub-summary{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); cursor:pointer; list-style:none; margin:18px 0 10px 0; padding-top:12px; border-top:1px solid var(--line); }
+.cs-arrow{ display:inline-block; color:var(--blue); font-size:12px; transition:transform .15s ease; flex-shrink:0; }
+.cs-arrow::before{ content:'▸'; }
+details[open] > summary.card-summary .cs-arrow{ transform:rotate(90deg); }
+.cs-title{ flex:1; }
+summary.sub-summary{ font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); cursor:pointer; list-style:none; margin:18px 0 10px 0; padding-top:14px; border-top:1px dashed var(--line-strong); }
 summary.sub-summary::-webkit-details-marker{ display:none; }
-summary.sub-summary::before{ content:'▸'; display:inline-block; margin-right:6px; color:var(--rust); font-size:10px; }
+summary.sub-summary::before{ content:'▸'; display:inline-block; margin-right:6px; color:var(--blue); font-size:10px; }
 details[open] > summary.sub-summary::before{ content:'▾'; }
-.hint:hover{ background:var(--rust-soft); color:var(--rust); }
-.hint .bubble{ display:none; position:absolute; z-index:5; left:0; top:20px; width:230px; background:var(--ink); color:#fff; font-size:12px; font-weight:400; padding:9px 11px; border-radius:7px; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+.hint:hover{ border-color:var(--blue); color:var(--blue); }
+.hint .bubble{ display:none; position:absolute; z-index:5; left:0; top:20px; width:230px; background:var(--ink); color:#fff; font-size:12px; font-weight:400; padding:9px 11px; border-radius:2px; line-height:1.4; box-shadow:0 6px 20px rgba(27,58,92,.3); font-family:'IBM Plex Sans',sans-serif; }
 .hint:hover .bubble, .hint:focus .bubble{ display:block; }
 </style>
 </head>
@@ -102,15 +136,17 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
     <span class="mark">PRECAST</span>
     <h1>Elements Estimator</h1>
   </div>
-  <div class="proj-chip">Project: <b id="topProjName">—</b> · Code: <b id="topProjCode">—</b></div>
+  <div class="tb-cell"><div class="k">Project</div><div class="v" id="topProjName">—</div></div>
+  <div class="tb-cell"><div class="k">Code</div><div class="v" id="topProjCode">—</div></div>
+  <div class="tb-spacer"></div>
 </div>
 
 <div class="shell">
   <nav class="rail" id="navRail">
     <button class="navbtn active" data-page="project">Project</button>
     <button class="navbtn" data-page="costs">Cost Settings</button>
-    <button class="navbtn" data-page="walls">Walls</button>
-    <button class="navbtn" data-page="columns">Columns</button>
+    <button class="navbtn" data-page="walls">Walls<span class="nav-dot" id="navDotWalls"></span></button>
+    <button class="navbtn" data-page="columns">Columns<span class="nav-dot" id="navDotColumns"></span></button>
     <button class="navbtn" data-page="summary">Project Summary</button>
   </nav>
 
@@ -147,7 +183,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <input type="file" id="importCostsFile" accept=".json" style="display:none;">
           <input type="file" id="importCostsExcelFile" accept=".xlsx,.xls" style="display:none;">
         </div>
-        <p style="color:var(--ink-soft); font-size:12.5px; margin:10px 0 0 0;">Excel file needs two columns: a rate name in column A matching one of the names above (e.g. <code>Steel Bars</code>) and its value in column B. Unmatched names are skipped.</p>
+        <p style="color:var(--dim); font-size:12.5px; margin:10px 0 0 0;">Excel file needs two columns: a rate name in column A matching one of the names above (e.g. <code>Steel Bars</code>) and its value in column B. Unmatched names are skipped.</p>
       </div>
     </section>
 
@@ -158,8 +194,8 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <p>Fabrication cost per m² for a group of precast wall panels sharing the same thickness. Reinforcement can be built from one or more bar/mesh sections, a blanket Reo Rate, or both together — same as the drawing calls for.</p>
       </div>
 
-      <div class="card">
-        <h2>Geometry</h2>
+      <details class="card" open>
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Geometry</span><span class="card-tag" id="wGeomTag">ELEMENT —</span></summary>
         <div class="grid4">
           <div class="field"><label>Element type / group name<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PT1" or "PCW-250" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="wElementType" placeholder="e.g. PCW-250"></div>
           <div class="field"><label>Total wall area (m²)</label><input type="number" id="wArea" value="0"></div>
@@ -176,32 +212,30 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field" id="wOpeningAreaField" style="display:none;"><label>Total openings area (m²)</label><input type="number" id="wOpeningArea" value="0"></div>
           <div class="field" id="wNumOpeningsField" style="display:none;"><label>Number of openings</label><input type="number" id="wNumOpenings" value="0"></div>
         </div>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Reinforcement</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Reinforcement</span></summary>
         <div class="grid4">
           <div class="field"><label>Reo Rate (kg/m³)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A blanket rate straight off the drawing, in addition to any bar/mesh sections below — both are always added together in this calculation, whichever way the toggle to the right is set.</span></span></label><input type="number" id="wReoRate" value="0"></div>
           <div class="field"><label>Additional steel (kg total)</label><input type="number" id="wExtraSteelKg" value="0"></div>
           <div class="field"><label>Reo Rate replaces sections, or adds to them?<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Label only — both Reo Rate and any sections below always add together in the total either way. Kept for consistency with the paper trail this was ported from.</span></span></label><select id="wReoMode"><option value="add">Add to bars and mesh</option><option value="only">Use only Reo Rate</option></select></div>
           <div class="field"><label>Apply lap splice</label><select id="wApplyLap"><option value="yes">Yes</option><option value="no">No</option></select></div>
         </div>
-      </div>
+      </details>
 
       <details class="card">
-        <summary class="card-summary" style="display:flex; align-items:center; justify-content:space-between;">
-          <span>Bars and mesh sections</span>
-        </summary>
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Bars and mesh sections</span></summary>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
           <button class="btn small ghost" id="wAddSection">+ Add section</button>
           <button class="btn small ghost" id="wRemoveSection">− Remove last</button>
         </div>
-        <p style="color:var(--ink-soft); font-size:13px; margin:10px 0 0 0;">Each section is a full set of horizontal/vertical bars, mesh, trimer bar and U-bar — add as many as the drawing has layers for. Their weights all add up. Leave collapsed and use Reo Rate above if you don't need this level of detail.</p>
+        <p style="color:var(--dim); font-size:13px; margin:10px 0 0 0;">Each section is a full set of horizontal/vertical bars, mesh, trimer bar and U-bar — add as many as the drawing has layers for. Their weights all add up. Leave collapsed and use Reo Rate above if you don't need this level of detail.</p>
         <div id="wSections" style="margin-top:14px;"></div>
       </details>
 
-      <div class="card">
-        <h2>Dowels (panel-to-panel)</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Dowels (panel-to-panel)</span></summary>
         <div class="grid4">
           <div class="field"><label>Dowels?</label><select id="wDowelsEnabled"><option value="no">No</option><option value="yes">Yes</option></select></div>
           <div class="field" id="wDowelMethodField" style="display:none;"><label>Calculation method</label><select id="wDowelMethod"><option value="auto">Calculate automatically</option><option value="manual">Enter total weight manually</option></select></div>
@@ -214,10 +248,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Spacing (mm)</label><input type="number" id="wDowelSpacing" value="0"></div>
           <div class="field"><label>Length override (m, 0 = auto 40d)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Leave at 0 to use the 40×diameter development-length formula. Panel-to-panel dowels are usually a shear connection, not a full splice — enter the real embedment length here if it's shorter, which is the common case.</span></span></label><input type="number" step="0.01" id="wDowelLengthOverride" value="0"></div>
         </div>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Accessories</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Accessories</span></summary>
         <div class="grid4">
           <div class="field"><label>Ripbox (m)</label><input type="number" id="wRipbox" value="0"></div>
           <div class="field"><label>Ferrules (ea)</label><input type="number" id="wFerrules" value="0"></div>
@@ -228,10 +262,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Lifting points per panel</label><input type="number" id="wLiftersPerPanel" value="0"></div>
           <div class="field"><label>Special accessories per m²</label><input type="number" step="0.01" id="wSpecialAccessoriesPerM2" value="0"></div>
         </div>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Extra costs &amp; waste</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Extra costs &amp; waste</span></summary>
         <details><summary class="sub-summary">Additional custom elements</summary>
         <div id="wCustomElements" style="margin-top:10px;"></div>
         <button class="btn small ghost" id="wAddCustomElement" style="margin-top:4px;">+ Add element</button>
@@ -241,7 +275,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <button class="btn small ghost" id="wAddEoItem" style="margin-top:4px;">+ Add EO item</button>
         </details>
         <details open><summary class="sub-summary">Waste %<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Only shows a field for an item once it has a quantity greater than zero — nothing to apply waste to yet otherwise.</span></span></summary>
-        <p id="wWasteNoneMsg" style="color:var(--ink-soft); font-size:13px; margin:10px 0 0 0;">Nothing to apply waste to yet — fill in quantities above first.</p>
+        <p id="wWasteNoneMsg" style="color:var(--dim); font-size:13px; margin:10px 0 0 0;">Nothing to apply waste to yet — fill in quantities above first.</p>
         <div class="grid4" id="wWasteApplyAllRow" style="margin-top:10px; display:none;">
           <div class="field"><label>Apply this % to all items below</label><input type="number" id="wWasteApplyAllPct" value="0"></div>
           <div class="field" style="align-self:end;"><button class="btn small ghost" id="wWasteApplyAllBtn" style="width:100%;">Apply to all</button></div>
@@ -256,20 +290,21 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field" id="wWasteRipboxField" style="display:none;"><label>Ripbox</label><input type="number" id="wWasteRipbox" value="0"></div>
         </div>
         </details>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Results</h2>
+      <details class="card" open>
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Results</span><span class="card-tag" id="wStatusTag">– PENDING</span></summary>
         <div class="results-grid">
           <div class="rbox total"><div class="lbl">Price per m²</div><div class="val" id="wPricePerM2">$0</div></div>
           <div class="rbox"><div class="lbl">Total cost</div><div class="val" id="wTotalCost">$0</div></div>
         </div>
+        <div id="wCostChart" class="cost-chart"></div>
         <table class="costs" id="wCostTable"></table>
         <details style="margin-top:14px;"><summary class="sub-summary">Reinforcement breakdown</summary>
           <table class="costs" id="wReinfBreakdownTable" style="margin-top:8px;"></table>
         </details>
         <div style="margin-top:14px;"><button class="btn" id="wAddToSummary">Add to Project Summary</button></div>
-      </div>
+      </details>
     </section>
 
     <section class="page" data-page="columns">
@@ -279,8 +314,8 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <p>Fabrication cost per m³ for a group of columns sharing the same geometry and reinforcement.</p>
       </div>
 
-      <div class="card">
-        <h2>Geometry</h2>
+      <details class="card" open>
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Geometry</span><span class="card-tag" id="colGeomTag">GROUP —</span></summary>
         <div class="grid4">
           <div class="field"><label>Group ID<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PC-01" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="colGroupId" placeholder="e.g. PC-01"></div>
           <div class="field"><label>Width (mm)</label><input type="number" id="colWidthMm" value="300"></div>
@@ -305,10 +340,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Cover known? (mm, 0 = assume 30mm)</label><input type="number" id="colCoverMm" value="0"></div>
         </div>
         <div id="colSlendernessWarn"></div>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Reinforcement</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Reinforcement</span></summary>
         <div class="field" style="max-width:340px;"><label>Steel costing method</label>
           <select id="colSteelMode"><option value="generalRate">General Reo Rate (kg/m³)</option><option value="barDetail">Bar Detail</option></select>
         </div>
@@ -346,10 +381,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Dowel bar</label><select id="colDowelBar"></select></div>
           <div class="field"><label>Length override (m, 0 = auto)</label><input type="number" id="colDowelLengthOverride" value="0" step="0.01"></div>
         </div>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Costs &amp; extras</h2>
+      <details class="card">
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Costs &amp; extras</span></summary>
         <div class="grid4">
           <div class="field"><label>Lifting points per column</label><input type="number" id="colLiftingQty" value="5"></div>
           <div class="field"><label>Special accessories per column</label><input type="number" id="colAccessoriesQty" value="2"></div>
@@ -374,10 +409,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div id="colConsumables" style="margin-top:10px;"></div>
           <button class="btn small ghost" id="colAddConsumable" style="margin-top:4px;">+ Add consumable</button>
         </details>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Results</h2>
+      <details class="card" open>
+        <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Results</span><span class="card-tag" id="colStatusTag">– PENDING</span></summary>
         <div class="results-grid">
           <div class="rbox"><div class="lbl">Volume per column</div><div class="val" id="colVolPerColumn">0 m³</div></div>
           <div class="rbox"><div class="lbl">Price per column</div><div class="val" id="colPricePerColumn">$0</div></div>
@@ -385,9 +420,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="rbox"><div class="lbl">Total group cost</div><div class="val" id="colTotalGroup">$0</div></div>
         </div>
         <div id="colCrossWarn"></div>
+        <div id="colCostChart" class="cost-chart"></div>
         <table class="costs" id="colCostTable"></table>
         <div style="margin-top:14px;"><button class="btn" id="colAddToSummary">Add to Project Summary</button></div>
-      </div>
+      </details>
     </section>
 
     <section class="page" data-page="summary">
@@ -407,7 +443,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
   </main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
 <script>
 /**
  * Precast calculation engine — migrated 1:1 from app.py / columns_tab.py.
@@ -904,21 +940,33 @@ function calcColumns(){
   $('colPricePerM3').textContent = fmt(cost.pricePerM3);
   $('colTotalGroup').textContent = fmt(cost.totalGroupCost);
 
-  const consumableRows = Object.entries(consumables).map(([label,val])=>
-    `<tr><td>${label}</td><td class="num">${fmt(val)}</td></tr>`).join('');
+  const colTag = $('colStatusTag');
+  const colReady = volumePerColumn > 0;
+  if (colReady) { colTag.textContent = '✓ READY'; colTag.classList.add('ready'); }
+  else { colTag.textContent = '– PENDING'; colTag.classList.remove('ready'); }
+  $('navDotColumns').className = 'nav-dot ' + (colReady ? 'ready' : 'empty');
 
-  $('colCostTable').innerHTML = `
-    <tr><th>Line</th><th style="text-align:right;">$ per column</th></tr>
-    <tr><td>Concrete</td><td class="num">${fmt(cost.concreteCost)}</td></tr>
-    <tr><td>Concrete Testing</td><td class="num">${fmt(cost.testingCost)}</td></tr>
-    <tr><td>Steel</td><td class="num">${fmt(cost.steelCost)}</td></tr>
-    <tr><td>Dowels</td><td class="num">${fmt(cost.dowelCost)}</td></tr>
-    <tr><td>Lifting</td><td class="num">${fmt(cost.liftingCost)}</td></tr>
-    <tr><td>Special Accessories</td><td class="num">${fmt(cost.accessoriesCost)}</td></tr>
-    ${consumableRows}
-    <tr><td>Labour (Wages+Shopdrawings+Formwork+Patching)</td><td class="num">${fmt(cost.labourCost)}</td></tr>
-    <tr class="total"><td>Price per column</td><td class="num">${fmt(cost.pricePerColumn)}</td></tr>
-  `;
+  markFieldFilled('colWidthMm', width > 0);
+  markFieldFilled('colDepthMm', depth > 0);
+  markFieldFilled('colConcreteType', !!$('colConcreteType').value);
+  if (geomMode === 'volumeQty') {
+    markFieldFilled('colGroupVolume', groupVolume > 0);
+    markFieldFilled('colGroupQtyA', groupQty > 0);
+  } else {
+    markFieldFilled('colHeightMm', avgHeight > 0);
+  }
+
+  const colItems = {
+    'Concrete': cost.concreteCost,
+    'Concrete Testing': cost.testingCost,
+    'Steel': cost.steelCost,
+    'Dowels': cost.dowelCost,
+    'Lifting': cost.liftingCost,
+    'Special Accessories': cost.accessoriesCost,
+    ...consumables,
+    'Labour': cost.labourCost,
+  };
+  renderCostBreakdown('colCostChart', 'colCostTable', colItems, '$ per column', 'Price per column', cost.pricePerColumn);
   return cost;
 }
 ['colWidthMm','colDepthMm','colHeightMm','colConcreteType','colGroupVolume','colGroupQtyA','colGroupQtyB','colCoverMm',
@@ -984,7 +1032,7 @@ let wallEoItems = [];
 
 function sectionHTML(s, idx){
   return `
-    <div class="card" style="background:var(--concrete); box-shadow:none; margin-bottom:12px;" data-section="${s.id}">
+    <div class="card" style="background:var(--paper); box-shadow:none; margin-bottom:12px;" data-section="${s.id}">
       <h3 style="border-top:none; padding-top:0; margin-top:0;">Section ${idx+1}</h3>
       <div class="grid4">
         <div class="field"><label>Horizontal bar</label><select data-sec="${s.id}" data-f="horizontalBar"></select></div>
@@ -1216,17 +1264,26 @@ function calcWalls(){
   };
   const result = calculateWallsCostPerM2(w, costDict);
 
-  if(!(area > 0 && thickness > 0 && numPanels > 0 && avgPanelHeight > 0)){
+  const wReady = area > 0 && thickness > 0 && numPanels > 0 && avgPanelHeight > 0;
+  markFieldFilled('wArea', area > 0);
+  markFieldFilled('wThickness', thickness > 0);
+  markFieldFilled('wNumPanels', numPanels > 0);
+  markFieldFilled('wAvgPanelHeight', avgPanelHeight > 0);
+  markFieldFilled('wConcreteType', !!$('wConcreteType').value);
+  $('navDotWalls').className = 'nav-dot ' + (wReady ? 'ready' : 'empty');
+
+  if(!wReady){
     $('wPricePerM2').textContent = '—';
     $('wTotalCost').textContent = '—';
-    $('wCostTable').innerHTML = `<tr><td style="color:var(--ink-soft); padding:10px 8px;">Enter wall area, thickness, number of panels and average panel height (all greater than zero) to see costs.</td></tr>`;
+    $('wCostChart').innerHTML = '';
+    $('wCostTable').innerHTML = `<tr><td style="color:var(--dim); padding:10px 8px;">Enter wall area, thickness, number of panels and average panel height (all greater than zero) to see costs.</td></tr>`;
+    $('wStatusTag').textContent = '– PENDING'; $('wStatusTag').classList.remove('ready');
     return result;
   }
+  $('wStatusTag').textContent = '✓ READY'; $('wStatusTag').classList.add('ready');
   $('wPricePerM2').textContent = fmt(result.totalCostPerM2);
   $('wTotalCost').textContent = fmt(result.totalCost);
-  $('wCostTable').innerHTML = `<tr><th>Line</th><th style="text-align:right;">$ per m²</th></tr>` +
-    Object.entries(result.costPerM2).map(([k,v])=>`<tr><td>${k}</td><td class="num">${fmt(v)}</td></tr>`).join('') +
-    `<tr class="total"><td>Total cost per m²</td><td class="num">${fmt(result.totalCostPerM2)}</td></tr>`;
+  renderCostBreakdown('wCostChart', 'wCostTable', result.costPerM2, '$ per m²', 'Total cost per m²', result.totalCostPerM2);
   const extraSteelKg = parseFloat($('wExtraSteelKg').value)||0;
   const reinfRows = [
     ['Reo Rate', reoRateKgTotal], ['Bars (H+V)', barsTotal], ['Mesh', meshWeightTotal],
@@ -1275,7 +1332,7 @@ function buildSummary(){
     summary.map(g=>`<tr>
       <td><input value="${g.groupId}" data-role="editGroupId" data-id="${g.id}" style="border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:13px; width:100%;"></td>
       <td>${g.type}</td>
-      <td class="num">${fmt(g.pricePerM3)} <span style="color:var(--ink-soft); font-size:11px;">${g.type==='Walls'?'/m²':'/m³'}</span></td>
+      <td class="num">${fmt(g.pricePerM3)} <span style="color:var(--dim); font-size:11px;">${g.type==='Walls'?'/m²':'/m³'}</span></td>
       <td class="num">${fmt(g.total)}</td>
       <td><button class="btn small ghost" data-role="delRow" data-id="${g.id}" aria-label="Remove ${g.groupId}">Remove</button></td>
     </tr>`).join('');
@@ -1334,49 +1391,184 @@ $('colAddToSummary').addEventListener('click', (e)=>{
 $('clearSummary').addEventListener('click', ()=>{ summary = []; localStorage.setItem('precast-summary','[]'); buildSummary(); });
 
 // ---------- Excel export (Report + Audit, via SheetJS) ----------
+// ---------- Excel cell-style helpers (matches the original xlsxwriter look: bold headers,
+// beige section bands, $#,##0.00 money format, bold+ruled totals) ----------
+const FMT_MONEY = '"$"#,##0.00';
+const STY_BOLD = { font:{ bold:true } };
+const STY_SECTION = { font:{ bold:true }, fill:{ fgColor:{ rgb:'E4E1D9' } } };
+const STY_MONEY = { numFmt: FMT_MONEY };
+const STY_MONEY_BOLD = { font:{ bold:true }, numFmt: FMT_MONEY };
+const STY_TOTAL = { font:{ bold:true }, border:{ top:{ style:'thin' } } };
+const STY_TOTAL_MONEY = { font:{ bold:true }, border:{ top:{ style:'thin' } }, numFmt: FMT_MONEY };
+function xCell(v, style){
+  const t = typeof v === 'number' ? 'n' : 's';
+  const c = { v, t };
+  if (style) c.s = style;
+  return c;
+}
+function xMoney(v, bold){ return xCell(v||0, bold ? STY_MONEY_BOLD : STY_MONEY); }
+function xBold(v){ return xCell(v, STY_BOLD); }
+function xSection(v){ return xCell(v, STY_SECTION); }
+
 function exportProjectExcel(){
   const projName = $('projName').value || 'Untitled Project';
   const projCode = $('projCode').value || 'N/A';
   const now = new Date().toISOString().slice(0,16).replace('T',' ');
+  const grandTotal = summary.reduce((a,g)=>a+g.total,0);
 
   const reportRows = [];
-  reportRows.push([`Project: ${projName} (${projCode})`]);
+  reportRows.push([xBold(`Project: ${projName} (${projCode})`)]);
   reportRows.push([`Generated: ${now} — ${summary.length} group(s)`]);
-  reportRows.push(['PROJECT TOTALS']);
-  summary.forEach(g=> reportRows.push([`${g.type} — ${g.groupId} (Price per ${g.type==='Walls'?'m²':'m³'})`, g.pricePerM3, g.total]));
-  reportRows.push(['GRAND TOTAL', '', summary.reduce((a,g)=>a+g.total,0)]);
+  reportRows.push([]);
+  reportRows.push([xSection('PROJECT TOTALS'), xSection(''), xSection('')]);
+  summary.forEach(g=> reportRows.push([`${g.type} — ${g.groupId} (Price per ${g.type==='Walls'?'m²':'m³'})`, xMoney(g.pricePerM3), xMoney(g.total)]));
+  reportRows.push([xCell('GRAND TOTAL', STY_TOTAL), xCell('', STY_TOTAL), xMoney(grandTotal, true)]);
   reportRows.push([]);
 
   const auditRows = [];
-  auditRows.push([`Project: ${projName} (${projCode})`]);
-  auditRows.push([`Generated: ${now} — ${summary.length} group(s)`]);
+  auditRows.push([xBold(`Project: ${projName} (${projCode})`)]);
+  auditRows.push([xBold(`Generated: ${now} — ${summary.length} group(s)`)]);
+  auditRows.push([]);
 
   summary.forEach(g=>{
-    reportRows.push([`${g.type} — ${g.groupId}`]);
-    reportRows.push([`Price per ${g.type==='Walls'?'m²':'m³'}`, g.pricePerM3]);
-    reportRows.push(['Total Group Cost', g.total]);
-    reportRows.push(['Item', `$ per ${g.type==='Walls'?'m²':'column/m³'}`]);
-    Object.entries(g.costPerUnit).forEach(([k,v])=> reportRows.push([k, v]));
-    reportRows.push(['Total Cost', g.pricePerM3]);
+    reportRows.push([xSection(`${g.type} — ${g.groupId}`), xSection(''), xSection('')]);
+    reportRows.push([`Price per ${g.type==='Walls'?'m²':'m³'}`, xMoney(g.pricePerM3)]);
+    reportRows.push(['Total Group Cost', xMoney(g.total)]);
+    reportRows.push([xBold('Item'), xBold(`$ per ${g.type==='Walls'?'m²':'column/m³'}`)]);
+    Object.entries(g.costPerUnit).forEach(([k,v])=> reportRows.push([k, xMoney(v)]));
+    reportRows.push([xCell('Total Cost', STY_TOTAL), xMoney(g.pricePerM3, true)]);
     reportRows.push([]);
 
-    auditRows.push([`${g.type} — ${g.groupId}`]);
-    auditRows.push(['INPUTS']);
-    Object.entries(g.inputs).forEach(([k,v])=> auditRows.push([k, v]));
-    auditRows.push(['UNIT RATES USED (from Cost Settings)']);
-    Object.entries(g.rates).forEach(([k,v])=> auditRows.push([k, v]));
-    auditRows.push(['RESULTS']);
-    auditRows.push([`Total Cost per ${g.type==='Walls'?'m²':'m³'} ($) — PRIMARY`, g.pricePerM3]);
-    auditRows.push(['Total Cost ($) — reference', g.total]);
+    auditRows.push([xSection(`${g.type} — ${g.groupId}`), xSection('')]);
+    auditRows.push([xBold('INPUTS')]);
+    Object.entries(g.inputs).forEach(([k,v])=> auditRows.push([k, String(v)]));
+    auditRows.push([xBold('UNIT RATES USED (from Cost Settings)')]);
+    Object.entries(g.rates).forEach(([k,v])=> auditRows.push([k, xMoney(v)]));
+    auditRows.push([xBold('RESULTS')]);
+    auditRows.push([`Total Cost per ${g.type==='Walls'?'m²':'m³'} ($) — PRIMARY`, xMoney(g.pricePerM3, true)]);
+    auditRows.push(['Total Cost ($) — reference', xMoney(g.total)]);
     auditRows.push([]);
   });
 
+  const wsReport = XLSX.utils.aoa_to_sheet(reportRows);
+  wsReport['!cols'] = [{wch:34},{wch:16},{wch:16},{wch:16},{wch:16},{wch:16}];
+  const wsAudit = XLSX.utils.aoa_to_sheet(auditRows);
+  wsAudit['!cols'] = [{wch:40},{wch:24}];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(reportRows), 'Report');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(auditRows), 'Audit');
+  XLSX.utils.book_append_sheet(wb, wsReport, 'Report');
+  XLSX.utils.book_append_sheet(wb, wsAudit, 'Audit');
   XLSX.writeFile(wb, `${projCode || 'project'}_summary.xlsx`);
 }
 $('downloadSummaryExcel').addEventListener('click', exportProjectExcel);
+
+// ---------- Card tags (live group/element identifiers) ----------
+function updateWGeomTag(){ $('wGeomTag').textContent = 'ELEMENT ' + ($('wElementType').value.trim() || '—'); }
+function updateColGeomTag(){ $('colGeomTag').textContent = 'GROUP ' + ($('colGroupId').value.trim() || '—'); }
+$('wElementType').addEventListener('input', updateWGeomTag);
+$('colGroupId').addEventListener('input', updateColGeomTag);
+
+// ---------- Corner registration marks (top-level cards only) ----------
+function addRegistrationMarks(){
+  document.querySelectorAll('.page > .card, .page > details.card').forEach(card=>{
+    if (card.querySelector(':scope > .reg')) return;
+    ['tl','tr','bl','br'].forEach(pos=>{
+      const m = document.createElement('span');
+      m.className = 'reg ' + pos;
+      card.appendChild(m);
+    });
+  });
+}
+
+// ---------- Cost composition: category grouping + donut chart ----------
+const CATEGORY_COLORS = {
+  'Concrete': '#5D6E78',
+  'Reinforcing Steel': '#1B3A5C',
+  'Dowels & Connections': '#3E7C8C',
+  'Labour': '#B23A2E',
+  'Extras & Accessories': '#D8A83D',
+};
+function categorizeLine(label){
+  const l = label.toLowerCase();
+  if (l.includes('concrete')) return 'Concrete';
+  if (l.includes('dowel') || l.includes('ripbox') || l.includes('ferrule') || l.includes('threadbar') || l.includes('coupler')) return 'Dowels & Connections';
+  if (l.includes('steel') || l.includes('trimer') || l.includes('u-bar') || l.includes('mesh') || l.includes('reo rate') || l.includes('reinforcement') || l.includes('reinforcing')) return 'Reinforcing Steel';
+  if (l.includes('wages') || l.includes('shopdrawings') || l.includes('formwork') || l.includes('patching') || l.includes('labour')) return 'Labour';
+  return 'Extras & Accessories';
+}
+function buildDonutSVG(segments, size){
+  size = size || 132;
+  const total = segments.reduce((a,s)=>a+s.value,0);
+  if (total <= 0) return '';
+  const r = size/2, cx = size/2, cy = size/2, strokeWidth = size*0.24;
+  const radius = r - strokeWidth/2;
+  const circumference = 2*Math.PI*radius;
+  let offset = 0;
+  const arcs = segments.filter(s=>s.value>0).map(s=>{
+    const frac = s.value/total;
+    const dash = frac*circumference;
+    const gap = circumference - dash;
+    const rotation = (offset/circumference)*360 - 90;
+    offset += dash;
+    return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${s.color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" transform="rotate(${rotation.toFixed(2)} ${cx} ${cy})"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${arcs}</svg>`;
+}
+// Renders a composition donut + legend into chartId, and the filtered (non-zero only)
+// itemized table into tableId. Returns nothing; both containers are fully replaced.
+function renderCostBreakdown(chartId, tableId, items, unitLabel, totalLabel, totalValue){
+  const EPS = 0.005;
+  const entries = Object.entries(items).filter(([,v]) => Math.abs(v) > EPS);
+
+  const catTotals = {};
+  entries.forEach(([label, v])=>{
+    const cat = categorizeLine(label);
+    catTotals[cat] = (catTotals[cat]||0) + v;
+  });
+  const catOrder = ['Concrete','Reinforcing Steel','Dowels & Connections','Labour','Extras & Accessories'];
+  const segments = catOrder.filter(c=>catTotals[c] > EPS).map(c=>({ label:c, value:catTotals[c], color:CATEGORY_COLORS[c] }));
+  const grandTotal = segments.reduce((a,s)=>a+s.value,0);
+
+  const chartEl = $(chartId);
+  if (segments.length === 0 || grandTotal <= 0) {
+    chartEl.innerHTML = '';
+  } else {
+    const legendRows = segments.map(s=>`
+      <div class="cost-chart-row">
+        <span class="cost-chart-dot" style="background:${s.color};"></span>
+        <span class="cc-label">${s.label}</span>
+        <span class="cc-pct">${((s.value/grandTotal)*100).toFixed(0)}%</span>
+        <span class="cc-val">${fmt(s.value)}</span>
+      </div>`).join('');
+    chartEl.innerHTML = `${buildDonutSVG(segments)}<div class="cost-chart-legend">${legendRows}</div>`;
+  }
+
+  const rows = entries.map(([label,v])=>`<tr><td>${label}</td><td class="num">${fmt(v)}</td></tr>`).join('');
+  $(tableId).innerHTML =
+    `<tr><th>Line</th><th style="text-align:right;">${unitLabel}</th></tr>` +
+    rows +
+    `<tr class="total"><td>${totalLabel}</td><td class="num">${fmt(totalValue)}</td></tr>`;
+}
+
+// ---------- Required-field indicators ----------
+// Marks a field as "required" (amber dot) at init, then toggles "filled" (green dot)
+// on every recalculation based on whether it currently has a usable value.
+const REQUIRED_FIELD_IDS = [
+  'wArea','wThickness','wNumPanels','wAvgPanelHeight','wConcreteType',
+  'colWidthMm','colDepthMm','colConcreteType','colGroupVolume','colGroupQtyA','colHeightMm',
+];
+function initRequiredFields(){
+  REQUIRED_FIELD_IDS.forEach(id=>{
+    const el = $(id); if (!el) return;
+    const field = el.closest('.field');
+    if (field) field.classList.add('required');
+  });
+}
+function markFieldFilled(id, isFilled){
+  const el = $(id); if (!el) return;
+  const field = el.closest('.field'); if (!field) return;
+  field.classList.toggle('filled', !!isFilled);
+}
 
 // ---------- Init ----------
 loadCosts(); buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
@@ -1384,7 +1576,9 @@ $('colConcreteType').value = 'Concrete 65 MPa';
 $('colDowelMode').value = 'manual';
 updateDowelBlocks();
 buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
+initRequiredFields();
 calcColumns(); calcWalls(); buildSummary();
+updateWGeomTag(); updateColGeomTag(); addRegistrationMarks();
 </script>
 </body>
 </html>
