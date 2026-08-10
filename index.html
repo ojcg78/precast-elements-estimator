@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precast Elements Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --concrete:#EAE6DF; --paper:#FBFAF7; --ink:#22242A; --ink-soft:#4A4E57;
+  --rust:#B5502F; --rust-soft:#F0DCD2; --steel:#3E6480; --steel-soft:#DCE6EC;
+  --line:#DAD5CC; --good:#3E6B52; --bad:#B5502F;
+}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--concrete); color:var(--ink); font-family:'Inter',sans-serif; }
+::focus-visible{ outline:2px solid var(--rust); outline-offset:2px; }
+::selection{ background:var(--rust-soft); }
+
+.topbar{ background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:14px 26px; box-shadow:0 1px 0 rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.12); position:relative; z-index:2; }
+.brand{ display:flex; align-items:center; gap:10px; }
+.brand .mark{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--rust-soft); border:1px solid var(--rust-soft); padding:3px 6px; border-radius:3px; }
+.brand h1{ font-family:'Fraunces',serif; font-weight:600; font-size:20px; margin:0; }
+.proj-chip{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:#C9CDD3; }
+.proj-chip b{ color:#fff; }
+
+.shell{ display:grid; grid-template-columns:230px 1fr; min-height:calc(100vh - 54px); }
+.rail{ background:var(--paper); border-right:1px solid var(--line); padding:20px 12px; }
+.navbtn{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; margin-bottom:2px; transition:background-color .15s ease, color .15s ease, transform .1s ease; }
+.navbtn:hover{ background:var(--steel-soft); }
+.navbtn:active{ transform:scale(.98); }
+.navbtn.active{ background:var(--ink); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+.navbtn[disabled]{ opacity:.45; cursor:not-allowed; }
+.navbtn .tag-soon{ font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.06em; text-transform:uppercase; background:var(--rust-soft); color:var(--rust); padding:2px 5px; border-radius:3px; margin-left:auto; }
+
+.content{ padding:28px 34px 70px; max-width:1080px; }
+.page{ display:none; }
+.page.active{ display:block; animation:fadeIn .22s ease; }
+@keyframes fadeIn{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:translateY(0); } }
+.eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--rust); }
+.page-head h2{ font-family:'Fraunces',serif; font-size:25px; font-weight:600; margin:4px 0 6px 0; }
+.page-head p{ color:var(--ink-soft); font-size:14px; max-width:640px; line-height:1.5; }
+
+.card{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:18px; box-shadow:0 1px 2px rgba(30,25,20,.04), 0 6px 18px rgba(30,25,20,.05); transition:box-shadow .18s ease; }
+.card:hover{ box-shadow:0 2px 4px rgba(30,25,20,.05), 0 10px 26px rgba(30,25,20,.07); }
+.card h2{ font-family:'Fraunces',serif; font-size:17px; font-weight:600; margin:0 0 14px 0; }
+.card h3{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin:18px 0 10px 0; padding-top:12px; border-top:1px solid var(--line); }
+.card h3:first-of-type{ border-top:none; padding-top:0; }
+
+.grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media (max-width:820px){ .grid3,.grid4{ grid-template-columns:1fr 1fr; } }
+.field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:4px; }
+.field input, .field select{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:#fff; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink); transition:border-color .15s ease, box-shadow .15s ease; }
+.field input:hover, .field select:hover{ border-color:var(--ink-soft); }
+.field input:focus, .field select:focus{ border-color:var(--steel); box-shadow:0 0 0 3px var(--steel-soft); outline:none; }
+
+.results-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+@media (max-width:820px){ .results-grid{ grid-template-columns:1fr 1fr; } }
+.rbox{ background:var(--steel-soft); border-radius:9px; padding:12px 14px; transition:transform .12s ease; }
+.rbox .lbl{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+.rbox .val{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; margin-top:4px; transition:color .2s ease; }
+.rbox.total{ background:var(--ink); color:#fff; box-shadow:0 4px 16px rgba(0,0,0,.15); }
+.rbox.total .lbl{ color:#C9CDD3; }
+.rbox.total .val{ color:var(--rust-soft); font-size:22px; }
+
+table.costs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
+table.costs th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--line); padding:6px 8px; }
+table.costs td{ padding:7px 8px; border-bottom:1px solid var(--line); transition:background-color .12s ease; }
+table.costs tbody tr:hover td{ background:var(--concrete); }
+table.costs td.num{ text-align:right; font-family:'IBM Plex Mono',monospace; }
+table.costs tr.total td{ font-weight:600; border-top:2px solid var(--ink); border-bottom:none; }
+
+.btn{ font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:8px; border:1px solid var(--ink); background:var(--ink); color:#fff; cursor:pointer; transition:transform .1s ease, box-shadow .15s ease, background-color .15s ease; }
+.btn:hover{ background:#33363D; box-shadow:0 3px 10px rgba(0,0,0,.18); }
+.btn:active{ transform:scale(.97); }
+.btn.ghost{ background:transparent; color:var(--ink); }
+.btn.ghost:hover{ background:var(--steel-soft); box-shadow:none; }
+.btn.small{ padding:6px 11px; font-size:12.5px; }
+.btn.flash{ animation:flashSuccess .5s ease; }
+@keyframes flashSuccess{ 0%{ background:var(--good); border-color:var(--good); } 100%{ background:var(--ink); border-color:var(--ink); } }
+.warn-box{ background:#F7ECD9; border:1px solid #E0C089; color:#7A5A17; border-radius:8px; padding:10px 14px; font-size:13px; margin-top:10px; }
+.notice{ background:var(--rust-soft); color:#7A3013; border-radius:8px; padding:14px 16px; font-size:13.5px; line-height:1.5; }
+.hint{ display:inline-block; margin-left:4px; width:15px; height:15px; border-radius:50%; background:var(--line); color:var(--ink-soft); font-size:10.5px; text-align:center; line-height:15px; cursor:help; position:relative; transition:background-color .15s ease; }
+summary.card-summary{ font-family:'Fraunces',serif; font-size:17px; font-weight:600; cursor:pointer; list-style:none; }
+summary.card-summary::-webkit-details-marker{ display:none; }
+summary.card-summary::before{ content:'▸'; display:inline-block; margin-right:8px; color:var(--rust); transition:transform .15s ease; font-size:13px; }
+details[open] > summary.card-summary::before{ transform:rotate(90deg); }
+summary.sub-summary{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); cursor:pointer; list-style:none; margin:18px 0 10px 0; padding-top:12px; border-top:1px solid var(--line); }
+summary.sub-summary::-webkit-details-marker{ display:none; }
+summary.sub-summary::before{ content:'▸'; display:inline-block; margin-right:6px; color:var(--rust); font-size:10px; }
+details[open] > summary.sub-summary::before{ content:'▾'; }
+.hint:hover{ background:var(--rust-soft); color:var(--rust); }
+.hint .bubble{ display:none; position:absolute; z-index:5; left:0; top:20px; width:230px; background:var(--ink); color:#fff; font-size:12px; font-weight:400; padding:9px 11px; border-radius:7px; line-height:1.4; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+.hint:hover .bubble, .hint:focus .bubble{ display:block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="mark">PRECAST</span>
+    <h1>Elements Estimator</h1>
+  </div>
+  <div class="proj-chip">Project: <b id="topProjName">—</b> · Code: <b id="topProjCode">—</b></div>
+</div>
+
+<div class="shell">
+  <nav class="rail" id="navRail">
+    <button class="navbtn active" data-page="project">Project</button>
+    <button class="navbtn" data-page="costs">Cost Settings</button>
+    <button class="navbtn" data-page="walls">Walls</button>
+    <button class="navbtn" data-page="columns">Columns</button>
+    <button class="navbtn" data-page="summary">Project Summary</button>
+  </nav>
+
+  <main class="content">
+
+    <section class="page active" data-page="project">
+      <div class="page-head">
+        <div class="eyebrow">New build</div>
+        <h2>Project</h2>
+        <p>Cost estimates for precast wall panels and columns, from geometry and reinforcement through to a final $/m² or $/m³.</p>
+      </div>
+      <div class="card">
+        <h2>Project details</h2>
+        <div class="grid3">
+          <div class="field"><label>Project name</label><input id="projName" placeholder="e.g. Majura Ave Warehouse"></div>
+          <div class="field"><label>Project code</label><input id="projCode" placeholder="e.g. A5061P-1"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="page" data-page="costs">
+      <div class="page-head">
+        <div class="eyebrow">Rates</div>
+        <h2>Cost Settings</h2>
+        <p>Every rate that feeds the estimates below. Saved on this device (no server, no shared file to sync) — use export/import to carry it to another device or hand it to someone else.</p>
+      </div>
+      <div class="card">
+        <div id="costLines"></div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn small ghost" id="exportCosts">Export .json</button>
+          <button class="btn small ghost" id="importCostsBtn">Import .json</button>
+          <button class="btn small ghost" id="importCostsExcelBtn">Import from Excel</button>
+          <input type="file" id="importCostsFile" accept=".json" style="display:none;">
+          <input type="file" id="importCostsExcelFile" accept=".xlsx,.xls" style="display:none;">
+        </div>
+        <p style="color:var(--ink-soft); font-size:12.5px; margin:10px 0 0 0;">Excel file needs two columns: a rate name in column A matching one of the names above (e.g. <code>Steel Bars</code>) and its value in column B. Unmatched names are skipped.</p>
+      </div>
+    </section>
+
+    <section class="page" data-page="walls">
+      <div class="page-head">
+        <div class="eyebrow">$/m²</div>
+        <h2>Walls</h2>
+        <p>Fabrication cost per m² for a group of precast wall panels sharing the same thickness. Reinforcement can be built from one or more bar/mesh sections, a blanket Reo Rate, or both together — same as the drawing calls for.</p>
+      </div>
+
+      <div class="card">
+        <h2>Geometry</h2>
+        <div class="grid4">
+          <div class="field"><label>Element type / group name<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PT1" or "PCW-250" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="wElementType" placeholder="e.g. PCW-250"></div>
+          <div class="field"><label>Total wall area (m²)</label><input type="number" id="wArea" value="0"></div>
+          <div class="field"><label>Wall thickness (mm)</label><input type="number" id="wThickness" value="0"></div>
+          <div class="field"><label>Number of panels</label><input type="number" id="wNumPanels" value="0"></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
+          <div class="field"><label>Average panel height (m)</label><input type="number" step="0.01" id="wAvgPanelHeight" value="0"></div>
+          <div class="field"><label>Concrete type</label><select id="wConcreteType"></select></div>
+        </div>
+        <h3>Openings</h3>
+        <div class="grid4">
+          <div class="field"><label>Do the panels have openings?</label><select id="wHasOpenings"><option value="no">No</option><option value="yes">Yes</option></select></div>
+          <div class="field" id="wOpeningAreaField" style="display:none;"><label>Total openings area (m²)</label><input type="number" id="wOpeningArea" value="0"></div>
+          <div class="field" id="wNumOpeningsField" style="display:none;"><label>Number of openings</label><input type="number" id="wNumOpenings" value="0"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reinforcement</h2>
+        <div class="grid4">
+          <div class="field"><label>Reo Rate (kg/m³)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A blanket rate straight off the drawing, in addition to any bar/mesh sections below — both are always added together in this calculation, whichever way the toggle to the right is set.</span></span></label><input type="number" id="wReoRate" value="0"></div>
+          <div class="field"><label>Additional steel (kg total)</label><input type="number" id="wExtraSteelKg" value="0"></div>
+          <div class="field"><label>Reo Rate replaces sections, or adds to them?<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Label only — both Reo Rate and any sections below always add together in the total either way. Kept for consistency with the paper trail this was ported from.</span></span></label><select id="wReoMode"><option value="add">Add to bars and mesh</option><option value="only">Use only Reo Rate</option></select></div>
+          <div class="field"><label>Apply lap splice</label><select id="wApplyLap"><option value="yes">Yes</option><option value="no">No</option></select></div>
+        </div>
+      </div>
+
+      <details class="card">
+        <summary class="card-summary" style="display:flex; align-items:center; justify-content:space-between;">
+          <span>Bars and mesh sections</span>
+        </summary>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+          <button class="btn small ghost" id="wAddSection">+ Add section</button>
+          <button class="btn small ghost" id="wRemoveSection">− Remove last</button>
+        </div>
+        <p style="color:var(--ink-soft); font-size:13px; margin:10px 0 0 0;">Each section is a full set of horizontal/vertical bars, mesh, trimer bar and U-bar — add as many as the drawing has layers for. Their weights all add up. Leave collapsed and use Reo Rate above if you don't need this level of detail.</p>
+        <div id="wSections" style="margin-top:14px;"></div>
+      </details>
+
+      <div class="card">
+        <h2>Dowels (panel-to-panel)</h2>
+        <div class="grid4">
+          <div class="field"><label>Dowels?</label><select id="wDowelsEnabled"><option value="no">No</option><option value="yes">Yes</option></select></div>
+          <div class="field" id="wDowelMethodField" style="display:none;"><label>Calculation method</label><select id="wDowelMethod"><option value="auto">Calculate automatically</option><option value="manual">Enter total weight manually</option></select></div>
+        </div>
+        <div class="grid4" id="wDowelManualBlock" style="display:none; margin-top:12px;">
+          <div class="field"><label>Total dowels weight (kg)</label><input type="number" id="wDowelManualWeight" value="0"></div>
+        </div>
+        <div class="grid4" id="wDowelAutoBlock" style="display:none; margin-top:12px;">
+          <div class="field"><label>Dowel bar</label><select id="wDowelBar"></select></div>
+          <div class="field"><label>Spacing (mm)</label><input type="number" id="wDowelSpacing" value="0"></div>
+          <div class="field"><label>Length override (m, 0 = auto 40d)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Leave at 0 to use the 40×diameter development-length formula. Panel-to-panel dowels are usually a shear connection, not a full splice — enter the real embedment length here if it's shorter, which is the common case.</span></span></label><input type="number" step="0.01" id="wDowelLengthOverride" value="0"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Accessories</h2>
+        <div class="grid4">
+          <div class="field"><label>Ripbox (m)</label><input type="number" id="wRipbox" value="0"></div>
+          <div class="field"><label>Ferrules (ea)</label><input type="number" id="wFerrules" value="0"></div>
+          <div class="field"><label>Threadbar (ea)</label><input type="number" id="wThreadbar" value="0"></div>
+          <div class="field"><label>Couplers (ea)</label><input type="number" id="wCouplers" value="0"></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
+          <div class="field"><label>Lifting points per panel</label><input type="number" id="wLiftersPerPanel" value="0"></div>
+          <div class="field"><label>Special accessories per m²</label><input type="number" step="0.01" id="wSpecialAccessoriesPerM2" value="0"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Extra costs &amp; waste</h2>
+        <details><summary class="sub-summary">Additional custom elements</summary>
+        <div id="wCustomElements" style="margin-top:10px;"></div>
+        <button class="btn small ghost" id="wAddCustomElement" style="margin-top:4px;">+ Add element</button>
+        </details>
+        <details><summary class="sub-summary">EO items</summary>
+        <div id="wEoItems" style="margin-top:10px;"></div>
+        <button class="btn small ghost" id="wAddEoItem" style="margin-top:4px;">+ Add EO item</button>
+        </details>
+        <details open><summary class="sub-summary">Waste %<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Only shows a field for an item once it has a quantity greater than zero — nothing to apply waste to yet otherwise.</span></span></summary>
+        <p id="wWasteNoneMsg" style="color:var(--ink-soft); font-size:13px; margin:10px 0 0 0;">Nothing to apply waste to yet — fill in quantities above first.</p>
+        <div class="grid4" id="wWasteApplyAllRow" style="margin-top:10px; display:none;">
+          <div class="field"><label>Apply this % to all items below</label><input type="number" id="wWasteApplyAllPct" value="0"></div>
+          <div class="field" style="align-self:end;"><button class="btn small ghost" id="wWasteApplyAllBtn" style="width:100%;">Apply to all</button></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
+          <div class="field" id="wWasteConcreteField" style="display:none;"><label>Concrete</label><input type="number" id="wWasteConcrete" value="0"></div>
+          <div class="field" id="wWasteSteelField" style="display:none;"><label>Steel (H+V)</label><input type="number" id="wWasteSteel" value="0"></div>
+          <div class="field" id="wWasteTrimmerField" style="display:none;"><label>Trimer bar</label><input type="number" id="wWasteTrimmer" value="0"></div>
+          <div class="field" id="wWasteUBarField" style="display:none;"><label>U-Bar</label><input type="number" id="wWasteUBar" value="0"></div>
+          <div class="field" id="wWasteMeshField" style="display:none;"><label>Mesh</label><input type="number" id="wWasteMesh" value="0"></div>
+          <div class="field" id="wWasteReoRateField" style="display:none;"><label>Reo Rate</label><input type="number" id="wWasteReoRate" value="0"></div>
+          <div class="field" id="wWasteRipboxField" style="display:none;"><label>Ripbox</label><input type="number" id="wWasteRipbox" value="0"></div>
+        </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Results</h2>
+        <div class="results-grid">
+          <div class="rbox total"><div class="lbl">Price per m²</div><div class="val" id="wPricePerM2">$0</div></div>
+          <div class="rbox"><div class="lbl">Total cost</div><div class="val" id="wTotalCost">$0</div></div>
+        </div>
+        <table class="costs" id="wCostTable"></table>
+        <details style="margin-top:14px;"><summary class="sub-summary">Reinforcement breakdown</summary>
+          <table class="costs" id="wReinfBreakdownTable" style="margin-top:8px;"></table>
+        </details>
+        <div style="margin-top:14px;"><button class="btn" id="wAddToSummary">Add to Project Summary</button></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="columns">
+      <div class="page-head">
+        <div class="eyebrow">$/m³</div>
+        <h2>Columns</h2>
+        <p>Fabrication cost per m³ for a group of columns sharing the same geometry and reinforcement.</p>
+      </div>
+
+      <div class="card">
+        <h2>Geometry</h2>
+        <div class="grid4">
+          <div class="field"><label>Group ID<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PC-01" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="colGroupId" placeholder="e.g. PC-01"></div>
+          <div class="field"><label>Width (mm)</label><input type="number" id="colWidthMm" value="300"></div>
+          <div class="field"><label>Depth (mm)</label><input type="number" id="colDepthMm" value="1000"></div>
+          <div class="field"><label>Concrete type</label><select id="colConcreteType"></select></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
+          <div class="field"><label>How is the column height known?<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Volume & Quantity is the most common case: enter the total group volume and column count from CostX, and the average height is derived automatically. Direct Average Height is for the less common case where the real average height of the group is already known.</span></span></label>
+            <select id="colGeomMode"><option value="volumeQty" selected>Volume &amp; Quantity (from CostX)</option><option value="directHeight">Direct Average Height</option></select>
+          </div>
+        </div>
+        <div class="grid4" id="colGeomVolumeQtyBlock" style="margin-top:12px;">
+          <div class="field"><label>Total group volume (m³)</label><input type="number" step="0.001" id="colGroupVolume" value="52.02"></div>
+          <div class="field"><label>Number of columns in group</label><input type="number" id="colGroupQtyA" value="51"></div>
+          <div class="field" style="align-self:end;"><span class="rbox" style="display:block; padding:8px 10px;"><span class="lbl">Derived average height</span><br><span class="val" id="colDerivedHeight" style="font-size:15px;">0 mm</span></span></div>
+        </div>
+        <div class="grid4" id="colGeomDirectHeightBlock" style="margin-top:12px; display:none;">
+          <div class="field"><label>Average height (mm)</label><input type="number" id="colHeightMm" value="3400"></div>
+          <div class="field"><label>Number of columns in group (optional, for total cost roll-up)</label><input type="number" id="colGroupQtyB" value="0"></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
+          <div class="field"><label>Cover known? (mm, 0 = assume 30mm)</label><input type="number" id="colCoverMm" value="0"></div>
+        </div>
+        <div id="colSlendernessWarn"></div>
+      </div>
+
+      <div class="card">
+        <h2>Reinforcement</h2>
+        <div class="field" style="max-width:340px;"><label>Steel costing method</label>
+          <select id="colSteelMode"><option value="generalRate">General Reo Rate (kg/m³)</option><option value="barDetail">Bar Detail</option></select>
+        </div>
+        <div id="colReoRateBlock" class="grid4" style="margin-top:12px;">
+          <div class="field"><label>Reo Rate given (kg/m³)</label><input type="number" id="colReoRateGiven" value="250"></div>
+        </div>
+        <div id="colBarDetailBlock" style="display:none; margin-top:12px;">
+          <h3>Longitudinal</h3>
+          <div class="grid4">
+            <div class="field"><label>Qty (Group 1)</label><input type="number" id="colLongQty" value="0"></div>
+            <div class="field"><label>Bar type (Group 1)</label><select id="colLongBar"></select></div>
+            <div class="field"><label>Qty (Group 2)</label><input type="number" id="colLongQty2" value="0"></div>
+            <div class="field"><label>Bar type (Group 2)</label><select id="colLongBar2"></select></div>
+          </div>
+          <div class="grid4" style="margin-top:12px;">
+            <div class="field"><label>Apply lap splice (40 × bar diameter)</label><select id="colApplyLap"><option value="yes" selected>Yes</option><option value="no">No</option></select></div>
+          </div>
+          <h3>Ties &amp; Ligs</h3>
+          <div class="grid4">
+            <div class="field"><label>Tie bar</label><select id="colTieBar"></select></div>
+            <div class="field"><label>Tie spacing (mm)</label><input type="number" id="colTieSpacingMm" value="0"></div>
+            <div class="field"><label>Measured tie perimeter (mm, 0 = calculate from W/D/Cover)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Leave at 0 to calculate it from Width, Depth and Cover. Enter it only if a detailed cross-section is available and a single tie's real perimeter (including hooks/crossties) can be measured directly.</span></span></label><input type="number" id="colTiePerimeterMm" value="0"></div>
+            <div class="field"><label>Ligs per tie level</label><input type="number" id="colLigQty" value="0"></div>
+          </div>
+          <div class="grid4" style="margin-top:12px;">
+            <div class="field"><label>Lig bar</label><select id="colLigBar"></select></div>
+          </div>
+        </div>
+        <h3>Dowels</h3>
+        <div class="grid4">
+          <div class="field"><label>Mode</label>
+            <select id="colDowelMode"><option value="exclude">Exclude</option><option value="estimatePerLongBar">Estimate (1 per longitudinal bar)</option><option value="manual" selected>I know the details</option></select>
+          </div>
+          <div class="field"><label>Manual qty per column</label><input type="number" id="colDowelManualQty" value="3"></div>
+          <div class="field"><label>Dowel bar</label><select id="colDowelBar"></select></div>
+          <div class="field"><label>Length override (m, 0 = auto)</label><input type="number" id="colDowelLengthOverride" value="0" step="0.01"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Costs &amp; extras</h2>
+        <div class="grid4">
+          <div class="field"><label>Lifting points per column</label><input type="number" id="colLiftingQty" value="5"></div>
+          <div class="field"><label>Special accessories per column</label><input type="number" id="colAccessoriesQty" value="2"></div>
+        </div>
+        <h3>Waste %</h3>
+        <div class="grid4">
+          <div class="field"><label>Concrete</label><input type="number" id="colWasteConcrete" value="5"></div>
+          <div class="field"><label>Reinforcing steel</label><input type="number" id="colWasteSteel" value="5"></div>
+          <div class="field"><label>Dowels</label><input type="number" id="colWasteDowel" value="0"></div>
+        </div>
+        <details style="margin-top:14px;"><summary class="sub-summary">Formwork area correction (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Off by default. Columns are usually cast lying on the bed like a beam: the bed face and open top face need no formwork, only the two side faces do. The traditional method (default) uses the full 4-side perimeter instead. Turning this on switches Wages/Shopdrawings/Formwork/Patching to the real 2-face area, scaled by the multiplier below.</span></span></summary>
+          <div class="grid4" style="margin-top:10px;">
+            <div class="field"><label>Use corrected formwork area</label><select id="colUseCorrectedFormwork"><option value="no" selected>No (traditional 4-side)</option><option value="yes">Yes (2-face area)</option></select></div>
+            <div class="field" id="colFormworkMultiplierField" style="display:none;"><label>Column labour rate multiplier<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">1.0 = same $/m² as Walls, applied to the smaller real area. Increase this to reflect the plywood/lower-reuse premium — tune it against the comparison below.</span></span></label><input type="number" step="0.1" id="colFormworkMultiplier" value="1.0"></div>
+          </div>
+          <div class="results-grid" id="colFormworkPreview" style="margin-top:10px; display:none;">
+            <div class="rbox"><div class="lbl">Traditional method (labour $/column)</div><div class="val" id="colFormworkPreviewTraditional">$0</div></div>
+            <div class="rbox"><div class="lbl">With correction (labour $/column)</div><div class="val" id="colFormworkPreviewCorrected">$0</div></div>
+          </div>
+        </details>
+        <details style="margin-top:14px;"><summary class="sub-summary">Additional consumables<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Add any consumables shown on the structural drawing that aren't covered above — e.g. chamfer strips, embedded base plates/inserts, grout/dry-pack, corbels, bar chairs/spacers, corrosion protection, surface finish.</span></span></summary>
+          <div id="colConsumables" style="margin-top:10px;"></div>
+          <button class="btn small ghost" id="colAddConsumable" style="margin-top:4px;">+ Add consumable</button>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Results</h2>
+        <div class="results-grid">
+          <div class="rbox"><div class="lbl">Volume per column</div><div class="val" id="colVolPerColumn">0 m³</div></div>
+          <div class="rbox"><div class="lbl">Price per column</div><div class="val" id="colPricePerColumn">$0</div></div>
+          <div class="rbox total"><div class="lbl">Price per m³</div><div class="val" id="colPricePerM3">$0</div></div>
+          <div class="rbox"><div class="lbl">Total group cost</div><div class="val" id="colTotalGroup">$0</div></div>
+        </div>
+        <div id="colCrossWarn"></div>
+        <table class="costs" id="colCostTable"></table>
+        <div style="margin-top:14px;"><button class="btn" id="colAddToSummary">Add to Project Summary</button></div>
+      </div>
+    </section>
+
+    <section class="page" data-page="summary">
+      <div class="page-head"><h2>Project Summary</h2><p>Every group added from Walls or Columns, stacked for a project total.</p></div>
+      <div class="card">
+        <table class="costs" id="summaryTable"></table>
+        <div class="results-grid" style="margin-top:14px;">
+          <div class="rbox total"><div class="lbl">Project total</div><div class="val" id="summaryTotal">$0</div></div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <button class="btn small" id="downloadSummaryExcel">Download Excel (Report + Audit)</button>
+          <button class="btn small ghost" id="clearSummary">Clear</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/**
+ * Precast calculation engine — migrated 1:1 from app.py / columns_tab.py.
+ * Every formula here must match the Python inventory exactly
+ * (see precast-migration-fase1-inventario.md). No shortcuts, no
+ * "equivalent" reformulations — line-for-line parity is the whole point,
+ * so results can be diffed against the Streamlit app for validation.
+ */
+
+// ---------------------------------------------------------------------
+// Shared lookup tables (identical to app.py)
+// ---------------------------------------------------------------------
+const steelWeightLookup = {
+  N10: 0.66, N12: 0.928, N16: 1.649, N20: 2.577,
+  N24: 3.711, N28: 5.051, N32: 6.597, N36: 8.35, N40: 10.309,
+  D10: 0.56, D12: 0.995, D16: 1.58, D20: 2.47
+};
+
+const barDiameterLookup = {
+  N10: 10, N12: 12, N16: 16, N20: 20, N24: 24,
+  N28: 28, N32: 32, N36: 36, N40: 40,
+  D10: 10, D12: 12, D16: 16, D20: 20
+};
+
+const meshWeightLookup = {
+  RL1018: 7.57, RL1118: 9.17, RL1218: 10.9, RL718: 4.72, RL818: 5.49,
+  RL918: 6.53, SL102: 5.57, SL62: 2.29, SL72: 2.83, SL81: 7.27,
+  SL82: 3.63, SL92: 4.55
+};
+
+function safeDiv(n, d) {
+  return (d !== undefined && d !== null && d > 0) ? n / d : 0.0;
+}
+
+// =======================================================================
+// WALLS
+// =======================================================================
+
+function calculateRebarWeight(area, spacingH, spacingV, barTypeH, barTypeV, placementH, placementV, applyLap) {
+  spacingH = spacingH ? spacingH / 1000 : 0;
+  spacingV = spacingV ? spacingV / 1000 : 0;
+  let totalWeightM2 = 0;
+
+  if (barTypeH) {
+    const diameterH = barDiameterLookup[barTypeH];
+    const lapFactorH = applyLap ? 1 + (40 * diameterH / 6000) : 1;
+    const placementFactorH = placementH === 'EF' ? 2 : 1;
+    const barsPerMeterH = spacingV > 0 ? 1 / spacingV : 0;
+    totalWeightM2 += barsPerMeterH * lapFactorH * placementFactorH * steelWeightLookup[barTypeH];
+  }
+  if (barTypeV) {
+    const diameterV = barDiameterLookup[barTypeV];
+    const lapFactorV = applyLap ? 1 + (40 * diameterV / 6000) : 1;
+    const placementFactorV = placementV === 'EF' ? 2 : 1;
+    const barsPerMeterV = spacingH > 0 ? 1 / spacingH : 0;
+    totalWeightM2 += barsPerMeterV * lapFactorV * placementFactorV * steelWeightLookup[barTypeV];
+  }
+  return { weightM2: totalWeightM2, weightTotal: totalWeightM2 * area };
+}
+
+function calculateMeshWeight(area, meshType, meshPlacement, applyLap) {
+  const base = (meshWeightLookup[meshType] || 0) * area;
+  const lapFactor = applyLap ? 1.2 : 1;
+  const placementFactor = meshPlacement === 'EF' ? 2 : 1;
+  return base * lapFactor * placementFactor;
+}
+
+function calculateTrimerBarWeight(area, numPanels, wallThickness, trimerType, placement, applyLap, openingArea, numOpenings, avgPanelHeight) {
+  if (!trimerType || numPanels === 0 || avgPanelHeight <= 0) return { weightM2: 0, weightTotal: 0 };
+
+  const avgWidth = numPanels > 0 ? (area / numPanels) / avgPanelHeight : 0;
+  const perimeterPerPanel = 2 * (avgWidth + avgPanelHeight);
+  let totalLength = perimeterPerPanel * numPanels;
+  if (placement === 'EF') totalLength *= 2;
+
+  const diameter = barDiameterLookup[trimerType] || 0;
+  const weightPerM = steelWeightLookup[trimerType] || 0;
+  const lapFactor = applyLap ? 1 + (40 * diameter / 6000) : 1;
+
+  let totalLengthWithLap = totalLength * lapFactor;
+
+  if (numOpenings > 0) {
+    const avgOpeningSide = Math.sqrt(openingArea / numOpenings);
+    let openingPerimeterTotal = (4 * avgOpeningSide) * numOpenings;
+    if (placement === 'EF') openingPerimeterTotal *= 2;
+    openingPerimeterTotal *= lapFactor;
+    totalLengthWithLap += openingPerimeterTotal;
+  }
+
+  const totalWeight = totalLengthWithLap * weightPerM;
+  return { weightM2: area > 0 ? totalWeight / area : 0, weightTotal: totalWeight };
+}
+
+function calculateUBarWeight(area, numPanels, wallThickness, uBarType, uBarSpacing, uBarLegLength, avgPanelHeight, uBarLocation) {
+  if (!uBarType || numPanels === 0 || uBarSpacing <= 0 || avgPanelHeight <= 0) {
+    return { weightM2: 0, weightTotal: 0 };
+  }
+  const diameter = barDiameterLookup[uBarType] || 0;
+  const legLength = uBarLegLength > 0 ? uBarLegLength : (40 * diameter) / 1000; // automático si no se ingresó manual
+  const avgSpan = uBarLocation === 'Side' ? avgPanelHeight : (numPanels > 0 ? (area / numPanels) / avgPanelHeight : 0);
+  let barsPerPanel = avgSpan / (uBarSpacing / 1000);
+  barsPerPanel = Math.floor(barsPerPanel) + (barsPerPanel % 1 > 0 ? 1 : 0);
+  const totalBars = barsPerPanel * numPanels;
+  const shortLeg = wallThickness / 1000;
+  const lengthPerBar = (2 * legLength) + shortLeg;
+  const weightPerM = steelWeightLookup[uBarType] || 0;
+  const totalWeight = totalBars * lengthPerBar * weightPerM;
+  return { weightM2: area > 0 ? totalWeight / area : 0, weightTotal: totalWeight };
+}
+
+// Una "sección" de refuerzo (bars+mesh+trimer+u-bar) — Walls admite varias, sumadas.
+function calculateSectionWeight(section, area, wallThickness, applyLap, numPanels, openingArea, numOpenings, avgPanelHeight, costDict) {
+  const bars = calculateRebarWeight(area, section.horizontalSpacing, section.verticalSpacing,
+    section.horizontalBar, section.verticalBar, section.horizontalPlacement, section.verticalPlacement, applyLap);
+  let meshWeight = 0, meshCost = 0;
+  if (section.meshEnabled && section.meshType) {
+    meshWeight = calculateMeshWeight(area, section.meshType, section.meshPlacement, applyLap);
+    meshCost = meshWeight * (costDict[section.meshType] || 0);
+  }
+  const trimer = calculateTrimerBarWeight(area, numPanels, wallThickness, section.trimerType, section.trimerPlacement, applyLap,
+    openingArea, numOpenings, avgPanelHeight);
+  const uBar = calculateUBarWeight(area, numPanels, wallThickness, section.uBarType, section.uBarSpacing,
+    section.uBarLegLength || 0, avgPanelHeight, section.uBarLocation);
+  return { barsTotal: bars.weightTotal, meshWeight, meshCost, trimerTotal: trimer.weightTotal, uBarTotal: uBar.weightTotal };
+}
+
+function autoDowelLength(barType) {
+  const d = barDiameterLookup[barType] || 0;
+  return (40 * d * 2) / 1000 + 0.02;
+}
+
+function calculateWallsDowels({ mode, avgPanelWidth, numberOfPanels, dowelSpacingMm, dowelBarType, manualLengthM, manualWeightKg }) {
+  if (mode === 'manualWeight') return manualWeightKg || 0;
+  let dowelLength;
+  if (manualLengthM > 0) dowelLength = manualLengthM;
+  else if (dowelBarType) dowelLength = autoDowelLength(dowelBarType);
+  else dowelLength = 0;
+
+  if (!(dowelSpacingMm > 0 && dowelBarType)) return 0;
+  let dowelsPerPanel = avgPanelWidth / (dowelSpacingMm / 1000);
+  dowelsPerPanel = Math.floor(dowelsPerPanel) + (dowelsPerPanel % 1 > 0 ? 1 : 0);
+  const totalDowels = dowelsPerPanel * numberOfPanels;
+  return totalDowels * dowelLength * (steelWeightLookup[dowelBarType] || 0);
+}
+
+function calculateWallsCostPerM2(w, costDict) {
+  const area = w.wallArea;
+  const g = (name) => costDict[name] || 0;
+
+  const meshUnitPrice = w.totalMeshWeight > 0 ? safeDiv(w.totalMeshCost, w.totalMeshWeight) : 0;
+
+  const costPerM2 = {
+    'Concrete': area > 0 ? (w.concreteVolume * (1 + w.wasteConcrete / 100)) * g(w.concreteType) / area : 0,
+    'Concrete Testing': area > 0 ? (w.concreteVolume * g('Concrete Testing')) / area : 0,
+    'Steel Bars (H+V)': w.barsWeightM2 * (1 + w.wasteSteel / 100) * g('Steel Bars'),
+    'Trimer Bar': w.trimerBarM2 * (1 + w.wasteTrimmer / 100) * g('Steel Bars'),
+    'U-Bar': w.uBarM2 * (1 + w.wasteUBar / 100) * g('Steel Bars'),
+    'Mesh': area > 0 ? meshUnitPrice * (w.totalMeshWeight / area) * (1 + w.wasteMesh / 100) : 0,
+    'Reo Rate': (w.reoRate * (w.wallThickness / 1000)) * (1 + w.wasteReoRate / 100) * g('Steel Bars'),
+    'Additional Reinforcement': area > 0 ? (w.extraSteelKg * g('Steel Bars')) / area : 0,
+    'Dowel Bars': area > 0 ? (w.totalDowelWeight * g('Steel Bars')) / area : 0,
+    'Ripbox': area > 0 ? (w.ripbox * (1 + w.wasteRipbox / 100) * g('Ripbox')) / area : 0,
+    'Ferrules': area > 0 ? (w.ferrules * g('Ferrule with chair')) / area : 0,
+    'Threadbar': area > 0 ? (w.threadbar * g('Threadbar')) / area : 0,
+    'Couplers': area > 0 ? (w.couplers * g('Couplers')) / area : 0,
+    'Lifting': area > 0 ? ((w.liftersPerPanel * w.numberOfPanels) * g('Lifting')) / area : 0,
+    'Special Accessories': w.specialAccessoriesPerM2 * g('Special Accessories'),
+    'Wages': g('Wages'),
+    'Shopdrawings': g('Shopdrawings'),
+    'Formwork': g('Formwork'),
+    'Patching': g('Patching'),
+  };
+  Object.entries(w.eoCosts || {}).forEach(([label, cost]) => { costPerM2[label] = cost; });
+  Object.entries(w.additionalCustomElements || {}).forEach(([label, cost]) => { costPerM2[label] = cost; });
+
+  const totalCostPerM2 = Object.values(costPerM2).reduce((a, b) => a + b, 0);
+  return { costPerM2, totalCostPerM2, totalCost: totalCostPerM2 * area };
+}
+
+// =======================================================================
+// COLUMNS
+// =======================================================================
+
+function calculateColumnReinforcement(c) {
+  function barLengthWithLap(qty, baseLength, barType, applyLap) {
+    if (!barType || qty <= 0) return 0;
+    const diameter = barDiameterLookup[barType] || 0;
+    const lapLength = applyLap ? (40 * diameter / 1000) : 0;
+    return qty * (baseLength + lapLength);
+  }
+
+  const longLength1 = barLengthWithLap(c.longQty, c.avgHeight, c.longBar, c.applyLap);
+  const longWeight1 = longLength1 * (steelWeightLookup[c.longBar] || 0);
+  const longLength2 = barLengthWithLap(c.longQty2, c.avgHeight, c.longBar2, c.applyLap);
+  const longWeight2 = longLength2 * (steelWeightLookup[c.longBar2] || 0);
+
+  const tieSpacingM = c.tieSpacingMm / 1000;
+  // CORREGIDO: +1 para reflejar un tie en cada extremo de la columna (base
+  // y coronación), no solo uno por intervalo — convención estándar de detallado.
+  const tieCount = (tieSpacingM > 0 && c.avgHeight > 0) ? Math.ceil(c.avgHeight / tieSpacingM) + 1 : 0;
+  const tiePerimeter = c.tiePerimeterOverrideM > 0
+    ? c.tiePerimeterOverrideM
+    : 2 * ((c.width - 2 * c.cover) + (c.depth - 2 * c.cover)) + 0.14;
+  const tieLength = tiePerimeter * tieCount;
+  const tieWeight = tieLength * (steelWeightLookup[c.tieBar] || 0);
+
+  const ligLength = ((c.width - 2 * c.cover) + 0.14) * (tieCount * c.ligQty);
+  const ligWeight = ligLength * (steelWeightLookup[c.ligBar] || 0);
+
+  const reoWeightFromBars = longWeight1 + longWeight2 + tieWeight + ligWeight;
+  const reoRateEstimated = safeDiv(reoWeightFromBars, c.volumePerColumn);
+
+  let reoRateUsed, reoWeightUsed;
+  if (c.steelMode === 'barDetail') {
+    reoRateUsed = reoRateEstimated;
+    reoWeightUsed = reoWeightFromBars;
+  } else {
+    reoRateUsed = c.reoRateGiven;
+    reoWeightUsed = c.reoRateGiven * c.volumePerColumn;
+  }
+
+  let crossCheckWarningPct = null;
+  if (c.reoRateGiven > 0 && reoRateEstimated > 0) {
+    const diffPct = (reoRateEstimated - c.reoRateGiven) / c.reoRateGiven;
+    if (Math.abs(diffPct) > 0.10) crossCheckWarningPct = diffPct;
+  }
+
+  return { longWeight1, longWeight2, tieCount, tiePerimeter, tieWeight, ligWeight, reoWeightFromBars, reoRateEstimated, reoRateUsed, reoWeightUsed, crossCheckWarningPct };
+}
+
+function calculateColumnDowels({ mode, longQty, longQty2, manualQty, lengthOverrideM, dowelBar }) {
+  let qtyUsed;
+  if (mode === 'exclude') qtyUsed = 0;
+  else if (mode === 'estimatePerLongBar') qtyUsed = longQty + longQty2;
+  else qtyUsed = manualQty;
+
+  let length;
+  if (lengthOverrideM > 0) length = lengthOverrideM;
+  else if (dowelBar) length = autoDowelLength(dowelBar);
+  else length = 0;
+
+  const weight = qtyUsed * length * (steelWeightLookup[dowelBar] || 0);
+  return { qtyUsed, length, weight };
+}
+
+function calculateColumnCost(c, costDict) {
+  const g = (name) => costDict[name] || 0;
+
+  const concreteQty = c.volumePerColumn * (1 + c.wasteConcrete / 100);
+  const concreteCost = concreteQty * g(c.concreteType);
+  const testingCost = c.volumePerColumn * g('Concrete Testing');
+  const steelQty = c.reoWeightUsed * (1 + c.wasteSteel / 100);
+  const steelCost = steelQty * g('Steel Bars');
+  const dowelQtyKg = c.dowelWeight * (1 + c.wasteDowel / 100);
+  const dowelCost = dowelQtyKg * g('Steel Bars');
+  const liftingCost = c.liftingQty * g('Lifting');
+  const accessoriesCost = c.accessoriesQty * g('Special Accessories');
+  const consumablesCost = Object.values(c.consumables || {}).reduce((a, b) => a + b, 0);
+
+  const rateSum = g('Wages') + g('Shopdrawings') + g('Formwork') + g('Patching');
+  const perimeter = 2 * (c.width + c.depth);
+  let surfaceArea, labourCost;
+  if (c.useCorrectedFormwork) {
+    surfaceArea = 2 * Math.min(c.width, c.depth) * c.avgHeight;
+    labourCost = rateSum * c.formworkMultiplier * surfaceArea;
+  } else {
+    surfaceArea = perimeter * c.avgHeight;
+    labourCost = rateSum * surfaceArea;
+  }
+
+  const materialsTotal = concreteCost + testingCost + steelCost + dowelCost + liftingCost + accessoriesCost + consumablesCost;
+  const pricePerColumn = materialsTotal + labourCost;
+  const pricePerM3 = safeDiv(pricePerColumn, c.volumePerColumn);
+
+  let totalGroupCost = 0;
+  if (c.groupQty > 0) totalGroupCost = pricePerColumn * c.groupQty;
+  else if (c.groupVolume > 0) totalGroupCost = pricePerM3 * c.groupVolume;
+
+  return {
+    concreteCost, testingCost, steelCost, dowelCost, liftingCost, accessoriesCost, consumablesCost,
+    labourCost, surfaceArea, materialsTotal, pricePerColumn, pricePerM3, totalGroupCost
+  };
+}
+
+</script>
+<script>
+const $ = id => document.getElementById(id);
+
+// ---------- Nav ----------
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(btn.disabled) return;
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.page[data-page="${btn.dataset.page}"]`).classList.add('active');
+  });
+});
+
+// ---------- Project ----------
+['projName','projCode'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{
+    $('topProjName').textContent = $('projName').value || '—';
+    $('topProjCode').textContent = $('projCode').value || '—';
+  });
+});
+
+// ---------- Cost Settings ----------
+const DEFAULT_COSTS = {
+  'Concrete 50 MPa': 265, 'Concrete 65 MPa': 295, 'Concrete 50 MPa (Special Mix)': 1000,
+  'RL1018': 3.2, 'RL1118': 3.2, 'RL1218': 3.2, 'RL718': 3.2, 'RL818': 3.2, 'RL918': 3.2,
+  'SL102': 2.75, 'SL62': 3.04, 'SL72': 2.69, 'SL81': 2.72, 'SL82': 2.59, 'SL92': 3.16,
+  'Steel Bars': 3.2, 'Concrete Testing': 40, 'Ripbox': 90, 'Lifting': 25,
+  'Wages': 45, 'Shopdrawings': 20, 'Formwork': 35, 'Patching': 15,
+  'Ferrule with chair': 5, 'Threadbar': 13, 'Couplers': 11, 'Special Accessories': 5,
+};
+let costDict = {};
+function loadCosts(){
+  try{ costDict = JSON.parse(localStorage.getItem('precast-costs')) || {...DEFAULT_COSTS}; }
+  catch(e){ costDict = {...DEFAULT_COSTS}; }
+}
+function saveCosts(){ localStorage.setItem('precast-costs', JSON.stringify(costDict)); }
+function buildCostLines(){
+  $('costLines').innerHTML = Object.entries(costDict).map(([name,val])=>`
+    <div class="grid4" style="margin-bottom:8px; align-items:end;">
+      <div class="field" style="grid-column:span 3;"><label>${name}</label></div>
+      <div class="field"><input type="number" step="0.01" value="${val}" data-cost="${name}"></div>
+    </div>`).join('');
+  document.querySelectorAll('[data-cost]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      costDict[inp.dataset.cost] = parseFloat(inp.value)||0;
+      saveCosts(); refreshConcreteOptions(); calcColumns();
+    });
+  });
+}
+function refreshConcreteOptions(){
+  const options = Object.keys(costDict).filter(k=>k.includes('MPa'));
+  document.querySelectorAll('#colConcreteType, #wConcreteType').forEach(sel=>{
+    const current = sel.value;
+    sel.innerHTML = options.map(o=>`<option value="${o}">${o}</option>`).join('');
+    if(options.includes(current)) sel.value = current;
+  });
+}
+$('exportCosts').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(costDict, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'precast-cost-settings.json'; a.click();
+});
+$('importCostsBtn').addEventListener('click', ()=> $('importCostsFile').click());
+$('importCostsFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ costDict = JSON.parse(reader.result); saveCosts(); buildCostLines(); refreshConcreteOptions(); calcColumns(); };
+  reader.readAsText(file);
+});
+$('importCostsExcelBtn').addEventListener('click', ()=> $('importCostsExcelFile').click());
+$('importCostsExcelFile').addEventListener('change', (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const data = new Uint8Array(reader.result);
+    const wb = XLSX.read(data, {type:'array'});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    let matched = 0, skipped = [];
+    rows.forEach(row=>{
+      const name = (row[0]||'').toString().trim();
+      const value = parseFloat(row[1]);
+      if(name && costDict.hasOwnProperty(name) && !isNaN(value)){ costDict[name] = value; matched++; }
+      else if(name && !costDict.hasOwnProperty(name)) skipped.push(name);
+    });
+    saveCosts(); buildCostLines(); refreshConcreteOptions(); calcColumns(); calcWalls();
+    alert(`Updated ${matched} rate(s).` + (skipped.length ? ` Skipped (no match): ${skipped.join(', ')}` : ''));
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ---------- Bar type dropdowns ----------
+const barTypeSelectIds = ['colLongBar','colLongBar2','colTieBar','colLigBar','colDowelBar','wDowelBar'];
+function buildBarTypeSelects(){
+  const opts = ['', ...Object.keys(steelWeightLookup)].map(b=>`<option value="${b}">${b||'—'}</option>`).join('');
+  barTypeSelectIds.forEach(id=>{ $(id).innerHTML = opts; });
+  $('colDowelBar').value = 'N36';
+  $('wDowelBar').value = 'N16';
+}
+
+// ---------- Columns module ----------
+$('colSteelMode').addEventListener('change', ()=>{
+  const detail = $('colSteelMode').value === 'barDetail';
+  $('colReoRateBlock').style.display = detail ? 'none' : '';
+  $('colBarDetailBlock').style.display = detail ? '' : 'none';
+  calcColumns();
+});
+$('colGeomMode').addEventListener('change', ()=>{
+  const isVolumeQty = $('colGeomMode').value === 'volumeQty';
+  $('colGeomVolumeQtyBlock').style.display = isVolumeQty ? '' : 'none';
+  $('colGeomDirectHeightBlock').style.display = isVolumeQty ? 'none' : '';
+  calcColumns();
+});
+$('colUseCorrectedFormwork').addEventListener('change', ()=>{
+  const show = $('colUseCorrectedFormwork').value === 'yes';
+  $('colFormworkMultiplierField').style.display = show ? '' : 'none';
+  $('colFormworkPreview').style.display = show ? '' : 'none';
+  calcColumns();
+});
+
+function fmt(n){ return '$' + (n||0).toLocaleString('en-AU', {maximumFractionDigits:2, minimumFractionDigits:2}); }
+
+let colConsumablesList = [];
+
+function calcColumns(){
+  const width = ($('colWidthMm').value||0)/1000;
+  const depth = ($('colDepthMm').value||0)/1000;
+
+  const geomMode = $('colGeomMode').value;
+  let avgHeight, groupQty, groupVolume;
+  if (geomMode === 'volumeQty') {
+    groupVolume = parseFloat($('colGroupVolume').value)||0;
+    groupQty = parseFloat($('colGroupQtyA').value)||0;
+    avgHeight = (groupQty > 0 && width > 0 && depth > 0) ? (groupVolume / groupQty) / (width * depth) : 0;
+    $('colDerivedHeight').textContent = (avgHeight*1000).toLocaleString('en-AU', {maximumFractionDigits:0}) + ' mm';
+  } else {
+    avgHeight = ($('colHeightMm').value||0)/1000;
+    groupQty = parseFloat($('colGroupQtyB').value)||0;
+    groupVolume = 0;
+  }
+
+  const coverMm = parseFloat($('colCoverMm').value)||0;
+  const cover = coverMm > 0 ? coverMm/1000 : 0.03;
+  const volumePerColumn = width*depth*avgHeight;
+  $('colVolPerColumn').textContent = volumePerColumn.toFixed(3) + ' m³';
+
+  // Slenderness check (height ÷ smallest cross-section dimension)
+  if (width > 0 && depth > 0 && avgHeight > 0) {
+    const slenderness = avgHeight / Math.min(width, depth);
+    $('colSlendernessWarn').innerHTML = slenderness > 25
+      ? `<div class="warn-box">Slenderness ratio (height ÷ smallest cross-section dimension) is ${slenderness.toFixed(1)} — unusually high for a precast column. Worth double-checking the height and cross-section units before pricing.</div>` : '';
+  } else {
+    $('colSlendernessWarn').innerHTML = '';
+  }
+
+  const applyLap = $('colApplyLap').value === 'yes';
+  const tiePerimeterOverrideM = (parseFloat($('colTiePerimeterMm').value)||0) / 1000;
+
+  const steelMode = $('colSteelMode').value;
+  const reo = calculateColumnReinforcement({
+    width, depth, avgHeight, cover, applyLap,
+    longQty: parseFloat($('colLongQty').value)||0, longBar: $('colLongBar').value,
+    longQty2: parseFloat($('colLongQty2').value)||0, longBar2: $('colLongBar2').value,
+    tieBar: $('colTieBar').value, tieSpacingMm: parseFloat($('colTieSpacingMm').value)||0,
+    tiePerimeterOverrideM, ligQty: parseFloat($('colLigQty').value)||0, ligBar: $('colLigBar').value,
+    steelMode, reoRateGiven: parseFloat($('colReoRateGiven').value)||0, volumePerColumn,
+  });
+
+  $('colCrossWarn').innerHTML = reo.crossCheckWarningPct !== null
+    ? `<div class="warn-box">Reo Rate difference of ${(reo.crossCheckWarningPct*100).toFixed(1)}% between the general rate given and the rate estimated from bar detail — worth reviewing before pricing.</div>` : '';
+
+  const dowels = calculateColumnDowels({
+    mode: $('colDowelMode').value,
+    longQty: parseFloat($('colLongQty').value)||0, longQty2: parseFloat($('colLongQty2').value)||0,
+    manualQty: parseFloat($('colDowelManualQty').value)||0,
+    lengthOverrideM: parseFloat($('colDowelLengthOverride').value)||0,
+    dowelBar: $('colDowelBar').value,
+  });
+
+  const useCorrectedFormwork = $('colUseCorrectedFormwork').value === 'yes';
+  const formworkMultiplier = parseFloat($('colFormworkMultiplier').value)||1;
+
+  const consumables = {};
+  colConsumablesList.forEach(it=>{
+    if ((it.label||'').trim()) consumables[it.label.trim()] = (it.cost||0) * (it.unit==='$/ea' ? (it.qty||0) : 1);
+  });
+
+  const cost = calculateColumnCost({
+    volumePerColumn, concreteType: $('colConcreteType').value,
+    wasteConcrete: parseFloat($('colWasteConcrete').value)||0,
+    wasteSteel: parseFloat($('colWasteSteel').value)||0,
+    wasteDowel: parseFloat($('colWasteDowel').value)||0,
+    reoWeightUsed: reo.reoWeightUsed, dowelWeight: dowels.weight,
+    liftingQty: parseFloat($('colLiftingQty').value)||0,
+    accessoriesQty: parseFloat($('colAccessoriesQty').value)||0,
+    consumables, width, depth, avgHeight,
+    useCorrectedFormwork, formworkMultiplier,
+    groupQty, groupVolume,
+  }, costDict);
+
+  if (useCorrectedFormwork && width > 0 && depth > 0 && avgHeight > 0) {
+    const rateSum = (costDict['Wages']||0) + (costDict['Shopdrawings']||0) + (costDict['Formwork']||0) + (costDict['Patching']||0);
+    const traditionalArea = 2 * (width + depth) * avgHeight;
+    const correctedArea = 2 * Math.min(width, depth) * avgHeight;
+    $('colFormworkPreviewTraditional').textContent = fmt(rateSum * traditionalArea);
+    $('colFormworkPreviewCorrected').textContent = fmt(rateSum * formworkMultiplier * correctedArea);
+  }
+
+  $('colPricePerColumn').textContent = fmt(cost.pricePerColumn);
+  $('colPricePerM3').textContent = fmt(cost.pricePerM3);
+  $('colTotalGroup').textContent = fmt(cost.totalGroupCost);
+
+  const consumableRows = Object.entries(consumables).map(([label,val])=>
+    `<tr><td>${label}</td><td class="num">${fmt(val)}</td></tr>`).join('');
+
+  $('colCostTable').innerHTML = `
+    <tr><th>Line</th><th style="text-align:right;">$ per column</th></tr>
+    <tr><td>Concrete</td><td class="num">${fmt(cost.concreteCost)}</td></tr>
+    <tr><td>Concrete Testing</td><td class="num">${fmt(cost.testingCost)}</td></tr>
+    <tr><td>Steel</td><td class="num">${fmt(cost.steelCost)}</td></tr>
+    <tr><td>Dowels</td><td class="num">${fmt(cost.dowelCost)}</td></tr>
+    <tr><td>Lifting</td><td class="num">${fmt(cost.liftingCost)}</td></tr>
+    <tr><td>Special Accessories</td><td class="num">${fmt(cost.accessoriesCost)}</td></tr>
+    ${consumableRows}
+    <tr><td>Labour (Wages+Shopdrawings+Formwork+Patching)</td><td class="num">${fmt(cost.labourCost)}</td></tr>
+    <tr class="total"><td>Price per column</td><td class="num">${fmt(cost.pricePerColumn)}</td></tr>
+  `;
+  return cost;
+}
+['colWidthMm','colDepthMm','colHeightMm','colConcreteType','colGroupVolume','colGroupQtyA','colGroupQtyB','colCoverMm',
+ 'colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap','colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigBar',
+ 'colDowelMode','colDowelManualQty','colDowelBar','colDowelLengthOverride',
+ 'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel','colWasteDowel',
+ 'colFormworkMultiplier'
+].forEach(id=> $(id).addEventListener('input', calcColumns));
+$('colDowelMode').addEventListener('change', calcColumns);
+$('colApplyLap').addEventListener('change', calcColumns);
+
+// ---------- Columns: Additional Consumables (dynamic list) ----------
+function colConsumableHTML(item, idx){
+  return `
+    <div class="grid4" style="margin-bottom:8px; align-items:end;" data-item="${item.id}" data-list="colConsumable">
+      <div class="field"><label>Description</label><input value="${item.label}" data-f="label"></div>
+      <div class="field"><label>Unit</label><select data-f="unit"><option value="$/column" ${item.unit==='$/column'?'selected':''}>$/column</option><option value="$/ea" ${item.unit==='$/ea'?'selected':''}>$/ea</option></select></div>
+      <div class="field"><label>${item.unit==='$/ea'?'Unit Cost':'Cost'}</label><input type="number" step="0.01" value="${item.cost}" data-f="cost"></div>
+      ${item.unit==='$/ea' ? `<div class="field"><label>Qty</label><input type="number" value="${item.qty}" data-f="qty"></div>` : `<div><button class="btn small ghost" data-role="del">Remove</button></div>`}
+    </div>
+    ${item.unit==='$/ea' ? `<div style="margin:-4px 0 8px 0;"><button class="btn small ghost" data-role="del" data-item="${item.id}">Remove</button></div>` : ''}
+  `;
+}
+function buildColConsumables(){
+  $('colConsumables').innerHTML = colConsumablesList.map((it,i)=>colConsumableHTML(it,i)).join('');
+}
+function wireColConsumables(){
+  const wrap = $('colConsumables');
+  wrap.addEventListener('input', (e)=>{
+    const row = e.target.closest('[data-item]'); if(!row) return;
+    const item = colConsumablesList.find(x=>x.id===row.dataset.item); if(!item) return;
+    const f = e.target.dataset.f;
+    item[f] = (f==='cost'||f==='qty') ? (parseFloat(e.target.value)||0) : e.target.value;
+    calcColumns();
+  });
+  wrap.addEventListener('change', (e)=>{
+    if(e.target.dataset.f === 'unit'){
+      const row = e.target.closest('[data-item]');
+      const item = colConsumablesList.find(x=>x.id===row.dataset.item);
+      item.unit = e.target.value; if(item.qty===undefined) item.qty = 1;
+      buildColConsumables(); calcColumns();
+    }
+  });
+  wrap.addEventListener('click', (e)=>{
+    if(e.target.dataset.role !== 'del') return;
+    const id = e.target.dataset.item || e.target.closest('[data-item]')?.dataset.item;
+    const i = colConsumablesList.findIndex(x=>x.id===id); if(i>=0) colConsumablesList.splice(i,1);
+    buildColConsumables(); calcColumns();
+  });
+}
+wireColConsumables();
+$('colAddConsumable').addEventListener('click', ()=>{
+  colConsumablesList.push({ id: crypto.randomUUID(), label:'', unit:'$/column', cost:0, qty:1 });
+  buildColConsumables(); calcColumns();
+});
+
+// ---------- Walls module ----------
+let wallSections = [{ id: crypto.randomUUID(), horizontalBar:'', horizontalSpacing:0, horizontalPlacement:'CTR',
+  verticalBar:'', verticalSpacing:0, verticalPlacement:'CTR', meshEnabled:false, meshType:'', meshPlacement:'CTR',
+  trimerType:'', trimerPlacement:'CTR', uBarType:'', uBarSpacing:0, uBarLocation:'Side', uBarLegLength:0 }];
+let wallCustomElements = [];
+let wallEoItems = [];
+
+function sectionHTML(s, idx){
+  return `
+    <div class="card" style="background:var(--concrete); box-shadow:none; margin-bottom:12px;" data-section="${s.id}">
+      <h3 style="border-top:none; padding-top:0; margin-top:0;">Section ${idx+1}</h3>
+      <div class="grid4">
+        <div class="field"><label>Horizontal bar</label><select data-sec="${s.id}" data-f="horizontalBar"></select></div>
+        <div class="field"><label>Horizontal spacing (mm)</label><input type="number" value="${s.horizontalSpacing}" data-sec="${s.id}" data-f="horizontalSpacing"></div>
+        <div class="field"><label>Horizontal placement</label><select data-sec="${s.id}" data-f="horizontalPlacement"><option value="CTR" ${s.horizontalPlacement==='CTR'?'selected':''}>Centre</option><option value="EF" ${s.horizontalPlacement==='EF'?'selected':''}>Each Face</option></select></div>
+        <div class="field"><label>Vertical bar</label><select data-sec="${s.id}" data-f="verticalBar"></select></div>
+      </div>
+      <div class="grid4" style="margin-top:10px;">
+        <div class="field"><label>Vertical spacing (mm)</label><input type="number" value="${s.verticalSpacing}" data-sec="${s.id}" data-f="verticalSpacing"></div>
+        <div class="field"><label>Vertical placement</label><select data-sec="${s.id}" data-f="verticalPlacement"><option value="CTR" ${s.verticalPlacement==='CTR'?'selected':''}>Centre</option><option value="EF" ${s.verticalPlacement==='EF'?'selected':''}>Each Face</option></select></div>
+        <div class="field"><label>Mesh reinforcement?</label><select data-sec="${s.id}" data-f="meshEnabled"><option value="no" ${!s.meshEnabled?'selected':''}>No</option><option value="yes" ${s.meshEnabled?'selected':''}>Yes</option></select></div>
+        ${s.meshEnabled ? `<div class="field"><label>Mesh type</label><select data-sec="${s.id}" data-f="meshType"></select></div>` : '<div></div>'}
+      </div>
+      ${s.meshEnabled ? `<div class="grid4" style="margin-top:10px;">
+        <div class="field"><label>Mesh placement</label><select data-sec="${s.id}" data-f="meshPlacement"><option value="CTR" ${s.meshPlacement==='CTR'?'selected':''}>Centre</option><option value="EF" ${s.meshPlacement==='EF'?'selected':''}>Each Face</option></select></div>
+      </div>` : ''}
+      <h3>Trimer bar</h3>
+      <div class="grid4">
+        <div class="field"><label>Trimer bar</label><select data-sec="${s.id}" data-f="trimerType"></select></div>
+        <div class="field"><label>Placement</label><select data-sec="${s.id}" data-f="trimerPlacement"><option value="CTR" ${s.trimerPlacement==='CTR'?'selected':''}>Centre</option><option value="EF" ${s.trimerPlacement==='EF'?'selected':''}>Each Face</option></select></div>
+      </div>
+      <h3>U-Bar</h3>
+      <div class="grid4">
+        <div class="field"><label>U-Bar type</label><select data-sec="${s.id}" data-f="uBarType"></select></div>
+        <div class="field"><label>Spacing (mm)</label><input type="number" value="${s.uBarSpacing}" data-sec="${s.id}" data-f="uBarSpacing"></div>
+        <div class="field"><label>Location</label><select data-sec="${s.id}" data-f="uBarLocation"><option value="Bottom" ${s.uBarLocation==='Bottom'?'selected':''}>Bottom</option><option value="Top" ${s.uBarLocation==='Top'?'selected':''}>Top</option><option value="Side" ${s.uBarLocation==='Side'?'selected':''}>Side</option></select></div>
+        <div class="field"><label>Leg length override (m, 0 = auto 40d)</label><input type="number" step="0.01" value="${s.uBarLegLength}" data-sec="${s.id}" data-f="uBarLegLength"></div>
+      </div>
+    </div>`;
+}
+function buildWallSections(){
+  $('wSections').innerHTML = wallSections.map((s,i)=>sectionHTML(s,i)).join('');
+  wallSections.forEach(s=>{
+    ['horizontalBar','verticalBar','trimerType','uBarType'].forEach(f=>{
+      const sel = document.querySelector(`[data-sec="${s.id}"][data-f="${f}"]`);
+      if(sel) sel.innerHTML = ['',...Object.keys(steelWeightLookup)].map(b=>`<option value="${b}" ${s[f]===b?'selected':''}>${b||'—'}</option>`).join('');
+    });
+    if(s.meshEnabled){
+      const sel = document.querySelector(`[data-sec="${s.id}"][data-f="meshType"]`);
+      if(sel) sel.innerHTML = ['',...Object.keys(meshWeightLookup)].map(b=>`<option value="${b}" ${s.meshType===b?'selected':''}>${b||'—'}</option>`).join('');
+    }
+  });
+}
+$('wSections').addEventListener('input', (e)=>{
+  const t = e.target; if(!t.dataset.sec) return;
+  const s = wallSections.find(x=>x.id===t.dataset.sec); if(!s) return;
+  const numeric = ['horizontalSpacing','verticalSpacing','uBarSpacing','uBarLegLength'].includes(t.dataset.f);
+  s[t.dataset.f] = numeric ? (parseFloat(t.value)||0) : t.value;
+  calcWalls();
+});
+$('wSections').addEventListener('change', (e)=>{
+  const t = e.target; if(!t.dataset.sec) return;
+  const s = wallSections.find(x=>x.id===t.dataset.sec); if(!s) return;
+  const numeric = ['horizontalSpacing','verticalSpacing','uBarSpacing','uBarLegLength'].includes(t.dataset.f);
+  s[t.dataset.f] = numeric ? (parseFloat(t.value)||0) : t.value;
+  if(t.dataset.f === 'meshEnabled'){ s.meshEnabled = (t.value === 'yes'); buildWallSections(); }
+  calcWalls();
+});
+$('wAddSection').addEventListener('click', ()=>{
+  wallSections.push({ id: crypto.randomUUID(), horizontalBar:'', horizontalSpacing:0, horizontalPlacement:'CTR',
+    verticalBar:'', verticalSpacing:0, verticalPlacement:'CTR', meshEnabled:false, meshType:'', meshPlacement:'CTR',
+    trimerType:'', trimerPlacement:'CTR', uBarType:'', uBarSpacing:0, uBarLocation:'Side', uBarLegLength:0 });
+  buildWallSections(); calcWalls();
+});
+$('wRemoveSection').addEventListener('click', ()=>{
+  if(wallSections.length>1){ wallSections.pop(); buildWallSections(); calcWalls(); }
+});
+
+function extraElementHTML(item, idx, containerPrefix, unitOptions){
+  return `
+    <div class="grid4" style="margin-bottom:8px; align-items:end;" data-item="${item.id}" data-list="${containerPrefix}">
+      <div class="field"><label>Description</label><input value="${item.label}" data-f="label"></div>
+      <div class="field"><label>Unit</label><select data-f="unit">${unitOptions.map(u=>`<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`).join('')}</select></div>
+      <div class="field"><label>${item.unit==='$/unit'?'Unit cost':'Cost'}</label><input type="number" step="0.01" value="${item.cost}" data-f="cost"></div>
+      ${item.unit==='$/unit' ? `<div class="field"><label>Qty</label><input type="number" value="${item.qty}" data-f="qty"></div>` : `<div><button class="btn small ghost" data-role="del">Remove</button></div>`}
+    </div>
+    ${item.unit==='$/unit' ? `<div style="margin:-4px 0 8px 0;"><button class="btn small ghost" data-role="del" data-item="${item.id}" data-list="${containerPrefix}">Remove</button></div>` : ''}
+  `;
+}
+function buildCustomElements(){
+  $('wCustomElements').innerHTML = wallCustomElements.map((it,i)=>extraElementHTML(it,i,'custom',['$/panel','$/m²','$/unit'])).join('');
+}
+function buildEoItems(){
+  $('wEoItems').innerHTML = wallEoItems.map((it,i)=>extraElementHTML(it,i,'eo',['$/panel','$/m²'])).join('');
+}
+function wireExtraList(containerId, list, rebuildFn){
+  const wrap = $(containerId);
+  wrap.addEventListener('input', (e)=>{
+    const row = e.target.closest('[data-item]'); if(!row) return;
+    const item = list.find(x=>x.id===row.dataset.item); if(!item) return;
+    const f = e.target.dataset.f;
+    item[f] = (f==='cost'||f==='qty') ? (parseFloat(e.target.value)||0) : e.target.value;
+    calcWalls();
+  });
+  wrap.addEventListener('change', (e)=>{
+    if(e.target.dataset.f === 'unit'){
+      const row = e.target.closest('[data-item]');
+      const item = list.find(x=>x.id===row.dataset.item);
+      item.unit = e.target.value; if(item.qty===undefined) item.qty = 1;
+      rebuildFn(); calcWalls();
+    }
+  });
+  wrap.addEventListener('click', (e)=>{
+    if(e.target.dataset.role !== 'del') return;
+    const id = e.target.dataset.item || e.target.closest('[data-item]')?.dataset.item;
+    const i = list.findIndex(x=>x.id===id); if(i>=0) list.splice(i,1);
+    rebuildFn(); calcWalls();
+  });
+}
+wireExtraList('wCustomElements', wallCustomElements, buildCustomElements);
+wireExtraList('wEoItems', wallEoItems, buildEoItems);
+$('wAddCustomElement').addEventListener('click', ()=>{
+  wallCustomElements.push({ id: crypto.randomUUID(), label:'', unit:'$/m²', cost:0, qty:1 });
+  buildCustomElements(); calcWalls();
+});
+$('wAddEoItem').addEventListener('click', ()=>{
+  wallEoItems.push({ id: crypto.randomUUID(), label:`EO - Extra ${wallEoItems.length+1}`, unit:'$/m²', cost:0 });
+  buildEoItems(); calcWalls();
+});
+
+$('wHasOpenings').addEventListener('change', ()=>{
+  const show = $('wHasOpenings').value === 'yes';
+  $('wOpeningAreaField').style.display = show ? '' : 'none';
+  $('wNumOpeningsField').style.display = show ? '' : 'none';
+  calcWalls();
+});
+$('wDowelsEnabled').addEventListener('change', ()=>{
+  const enabled = $('wDowelsEnabled').value === 'yes';
+  $('wDowelMethodField').style.display = enabled ? '' : 'none';
+  updateDowelBlocks(); calcWalls();
+});
+$('wDowelMethod').addEventListener('change', ()=>{ updateDowelBlocks(); calcWalls(); });
+$('wWasteApplyAllBtn').addEventListener('click', ()=>{
+  const pct = parseFloat($('wWasteApplyAllPct').value)||0;
+  const map = { wWasteConcreteField:'wWasteConcrete', wWasteSteelField:'wWasteSteel', wWasteTrimmerField:'wWasteTrimmer',
+    wWasteUBarField:'wWasteUBar', wWasteMeshField:'wWasteMesh', wWasteReoRateField:'wWasteReoRate', wWasteRipboxField:'wWasteRipbox' };
+  Object.entries(map).forEach(([fieldId, inputId])=>{
+    if($(fieldId).style.display !== 'none') $(inputId).value = pct;
+  });
+  calcWalls();
+});
+function updateWasteVisibility(visibility){
+  let anyVisible = false;
+  Object.entries(visibility).forEach(([fieldId, show])=>{
+    $(fieldId).style.display = show ? '' : 'none';
+    if(show) anyVisible = true;
+  });
+  $('wWasteApplyAllRow').style.display = anyVisible ? '' : 'none';
+  $('wWasteNoneMsg').style.display = anyVisible ? 'none' : '';
+}
+function updateDowelBlocks(){
+  const enabled = $('wDowelsEnabled').value === 'yes';
+  const method = $('wDowelMethod').value;
+  $('wDowelManualBlock').style.display = (enabled && method==='manual') ? '' : 'none';
+  $('wDowelAutoBlock').style.display = (enabled && method==='auto') ? '' : 'none';
+}
+
+function calcWalls(){
+  const area = parseFloat($('wArea').value)||0;
+  const thickness = parseFloat($('wThickness').value)||0;
+  const numPanels = parseFloat($('wNumPanels').value)||0;
+  const avgPanelHeight = parseFloat($('wAvgPanelHeight').value)||0;
+  const applyLap = $('wApplyLap').value === 'yes';
+  const avgPanelWidth = (numPanels>0 && avgPanelHeight>0) ? (area/numPanels)/avgPanelHeight : 0;
+  const hasOpenings = $('wHasOpenings').value === 'yes';
+  const openingArea = hasOpenings ? (parseFloat($('wOpeningArea').value)||0) : 0;
+  const numOpenings = hasOpenings ? (parseFloat($('wNumOpenings').value)||0) : 0;
+
+  let barsTotal=0, trimerTotal=0, uBarTotal=0, meshWeightTotal=0, meshCostTotal=0;
+  wallSections.forEach(s=>{
+    const r = calculateSectionWeight(s, area, thickness, applyLap, numPanels, openingArea, numOpenings, avgPanelHeight, costDict);
+    barsTotal += r.barsTotal; trimerTotal += r.trimerTotal; uBarTotal += r.uBarTotal;
+    meshWeightTotal += r.meshWeight; meshCostTotal += r.meshCost;
+  });
+  const concreteVolumeNow = area * thickness/1000;
+  const reoRateKgTotal = (parseFloat($('wReoRate').value)||0) * (thickness/1000) * area;
+  const ripboxQty = parseFloat($('wRipbox').value)||0;
+  updateWasteVisibility({
+    'wWasteConcreteField': concreteVolumeNow > 0, 'wWasteSteelField': barsTotal > 0,
+    'wWasteTrimmerField': trimerTotal > 0, 'wWasteUBarField': uBarTotal > 0,
+    'wWasteMeshField': meshWeightTotal > 0, 'wWasteReoRateField': reoRateKgTotal > 0,
+    'wWasteRipboxField': ripboxQty > 0,
+  });
+
+  let dowelWeight = 0;
+  if($('wDowelsEnabled').value === 'yes'){
+    if($('wDowelMethod').value === 'manual'){
+      dowelWeight = parseFloat($('wDowelManualWeight').value)||0;
+    } else {
+      dowelWeight = calculateWallsDowels({
+        mode:'auto', avgPanelWidth, numberOfPanels: numPanels,
+        dowelSpacingMm: parseFloat($('wDowelSpacing').value)||0, dowelBarType: $('wDowelBar').value,
+        manualLengthM: parseFloat($('wDowelLengthOverride').value)||0, manualWeightKg: 0,
+      });
+    }
+  }
+
+  const eoCosts = {};
+  wallEoItems.forEach(it=>{
+    if(!it.label) return;
+    if(it.unit==='$/panel' && numPanels>0) eoCosts[it.label] = safeDiv(it.cost*numPanels, area);
+    else if(it.unit==='$/m²') eoCosts[it.label] = it.cost;
+  });
+  const additionalCustomElements = {};
+  wallCustomElements.forEach(it=>{
+    if(!it.label) return;
+    if(it.unit==='$/panel' && numPanels>0) additionalCustomElements[it.label] = safeDiv(it.cost*numPanels, area);
+    else if(it.unit==='$/m²') additionalCustomElements[it.label] = it.cost;
+    else if(it.unit==='$/unit') additionalCustomElements[it.label] = area>0 ? (it.cost*(it.qty||1))/area : 0;
+  });
+
+  const w = {
+    wallArea: area, wallThickness: thickness,
+    concreteVolume: area * thickness/1000, wasteConcrete: parseFloat($('wWasteConcrete').value)||0,
+    concreteType: $('wConcreteType').value,
+    barsWeightM2: area>0 ? barsTotal/area : 0, wasteSteel: parseFloat($('wWasteSteel').value)||0,
+    trimerBarM2: area>0 ? trimerTotal/area : 0, wasteTrimmer: parseFloat($('wWasteTrimmer').value)||0,
+    uBarM2: area>0 ? uBarTotal/area : 0, wasteUBar: parseFloat($('wWasteUBar').value)||0,
+    totalMeshWeight: meshWeightTotal, totalMeshCost: meshCostTotal, wasteMesh: parseFloat($('wWasteMesh').value)||0,
+    reoRate: parseFloat($('wReoRate').value)||0, wasteReoRate: parseFloat($('wWasteReoRate').value)||0,
+    extraSteelKg: parseFloat($('wExtraSteelKg').value)||0,
+    totalDowelWeight: dowelWeight,
+    ripbox: parseFloat($('wRipbox').value)||0, wasteRipbox: parseFloat($('wWasteRipbox').value)||0,
+    ferrules: parseFloat($('wFerrules').value)||0, threadbar: parseFloat($('wThreadbar').value)||0,
+    couplers: parseFloat($('wCouplers').value)||0,
+    liftersPerPanel: parseFloat($('wLiftersPerPanel').value)||0, numberOfPanels: numPanels,
+    specialAccessoriesPerM2: parseFloat($('wSpecialAccessoriesPerM2').value)||0,
+    eoCosts, additionalCustomElements,
+  };
+  const result = calculateWallsCostPerM2(w, costDict);
+
+  if(!(area > 0 && thickness > 0 && numPanels > 0 && avgPanelHeight > 0)){
+    $('wPricePerM2').textContent = '—';
+    $('wTotalCost').textContent = '—';
+    $('wCostTable').innerHTML = `<tr><td style="color:var(--ink-soft); padding:10px 8px;">Enter wall area, thickness, number of panels and average panel height (all greater than zero) to see costs.</td></tr>`;
+    return result;
+  }
+  $('wPricePerM2').textContent = fmt(result.totalCostPerM2);
+  $('wTotalCost').textContent = fmt(result.totalCost);
+  $('wCostTable').innerHTML = `<tr><th>Line</th><th style="text-align:right;">$ per m²</th></tr>` +
+    Object.entries(result.costPerM2).map(([k,v])=>`<tr><td>${k}</td><td class="num">${fmt(v)}</td></tr>`).join('') +
+    `<tr class="total"><td>Total cost per m²</td><td class="num">${fmt(result.totalCostPerM2)}</td></tr>`;
+  const extraSteelKg = parseFloat($('wExtraSteelKg').value)||0;
+  const reinfRows = [
+    ['Reo Rate', reoRateKgTotal], ['Bars (H+V)', barsTotal], ['Mesh', meshWeightTotal],
+    ['Trimer Bar', trimerTotal], ['U-Bar', uBarTotal], ['Additional Reinforcement', extraSteelKg], ['Dowels', dowelWeight],
+  ];
+  $('wReinfBreakdownTable').innerHTML = `<tr><th>Component</th><th style="text-align:right;">kg/m²</th><th style="text-align:right;">Total (kg)</th></tr>` +
+    reinfRows.map(([label,kg])=>`<tr><td>${label}</td><td class="num">${(area>0?kg/area:0).toFixed(2)}</td><td class="num">${kg.toFixed(2)}</td></tr>`).join('') +
+    `<tr class="total"><td>Total steel</td><td class="num">${(area>0?(barsTotal+meshWeightTotal+trimerTotal+uBarTotal+reoRateKgTotal+extraSteelKg)/area:0).toFixed(2)}</td><td class="num">${(barsTotal+meshWeightTotal+trimerTotal+uBarTotal+reoRateKgTotal+extraSteelKg).toFixed(2)}</td></tr>`;
+  return result;
+}
+const wallsInputIds = ['wArea','wThickness','wNumPanels','wAvgPanelHeight','wConcreteType',
+  'wReoRate','wExtraSteelKg','wReoMode','wApplyLap',
+  'wDowelBar','wDowelSpacing','wDowelLengthOverride','wDowelManualWeight',
+  'wRipbox','wFerrules','wThreadbar','wCouplers','wLiftersPerPanel','wSpecialAccessoriesPerM2',
+  'wWasteConcrete','wWasteSteel','wWasteTrimmer','wWasteUBar','wWasteMesh','wWasteReoRate','wWasteRipbox',
+  'wOpeningArea','wNumOpenings'];
+wallsInputIds.forEach(id=> $(id).addEventListener('input', calcWalls));
+wallsInputIds.forEach(id=> $(id).addEventListener('change', calcWalls));
+$('wAddToSummary').addEventListener('click', (e)=>{
+  const result = calcWalls();
+  const groupId = $('wElementType').value.trim() || `Walls group ${summary.length+1}`;
+  summary.push({
+    id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
+    costPerUnit: result.costPerM2,
+    inputs: {
+      'Element Type': $('wElementType').value || 'N/A', 'Wall Area (m²)': $('wArea').value, 'Wall Thickness (mm)': $('wThickness').value,
+      'Number of Panels': $('wNumPanels').value, 'Average Panel Height (m)': $('wAvgPanelHeight').value,
+      'Concrete Type': $('wConcreteType').value, 'Apply Lap Splice': $('wApplyLap').value,
+      'Number of Sections': wallSections.length,
+      'Reo Rate (kg/m³)': $('wReoRate').value, 'Dowels': $('wDowelsEnabled').value,
+      'Waste % — Concrete': $('wWasteConcrete').value, 'Waste % — Steel': $('wWasteSteel').value,
+    },
+    rates: { 'Concrete': costDict[$('wConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
+      'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
+      'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
+  });
+  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  buildSummary();
+  e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
+});
+
+// ---------- Project Summary ----------
+let summary = JSON.parse(localStorage.getItem('precast-summary') || '[]');
+function buildSummary(){
+  $('summaryTable').innerHTML = `<tr><th>Group</th><th>Type</th><th style="text-align:right;">Price/unit</th><th style="text-align:right;">Group total</th><th></th></tr>` +
+    summary.map(g=>`<tr>
+      <td><input value="${g.groupId}" data-role="editGroupId" data-id="${g.id}" style="border:1px solid var(--line); border-radius:6px; padding:4px 6px; font-size:13px; width:100%;"></td>
+      <td>${g.type}</td>
+      <td class="num">${fmt(g.pricePerM3)} <span style="color:var(--ink-soft); font-size:11px;">${g.type==='Walls'?'/m²':'/m³'}</span></td>
+      <td class="num">${fmt(g.total)}</td>
+      <td><button class="btn small ghost" data-role="delRow" data-id="${g.id}" aria-label="Remove ${g.groupId}">Remove</button></td>
+    </tr>`).join('');
+  const total = summary.reduce((a,g)=>a+g.total,0);
+  $('summaryTotal').textContent = fmt(total);
+}
+$('summaryTable').addEventListener('input', (e)=>{
+  if(e.target.dataset.role !== 'editGroupId') return;
+  const g = summary.find(x=>x.id===e.target.dataset.id); if(!g) return;
+  g.groupId = e.target.value;
+  localStorage.setItem('precast-summary', JSON.stringify(summary));
+});
+$('summaryTable').addEventListener('click', (e)=>{
+  if(e.target.dataset.role !== 'delRow') return;
+  summary = summary.filter(x=>x.id!==e.target.dataset.id);
+  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  buildSummary();
+});
+$('colAddToSummary').addEventListener('click', (e)=>{
+  const cost = calcColumns();
+  const groupId = $('colGroupId').value.trim() || `Columns group ${summary.length+1}`;
+  summary.push({
+    id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
+    costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
+      'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Labour':cost.labourCost },
+    inputs: {
+      'Group ID': $('colGroupId').value || 'N/A', 'Width (mm)': $('colWidthMm').value, 'Depth (mm)': $('colDepthMm').value,
+      'Geometry Mode': $('colGeomMode').value, 'Average Height Used (mm)': (($('colGeomMode').value==='volumeQty') ? $('colDerivedHeight').textContent : $('colHeightMm').value),
+      'Total Group Volume (m³)': $('colGeomMode').value==='volumeQty' ? $('colGroupVolume').value : 'n/a',
+      'Concrete Type': $('colConcreteType').value,
+      'Group Qty': $('colGeomMode').value==='volumeQty' ? $('colGroupQtyA').value : $('colGroupQtyB').value,
+      'Cover (mm)': $('colCoverMm').value,
+      'Steel Mode': $('colSteelMode').value, 'Reo Rate Given (kg/m³)': $('colReoRateGiven').value,
+      'Long Qty (Group 1)': $('colLongQty').value, 'Long Bar (Group 1)': $('colLongBar').value,
+      'Long Qty (Group 2)': $('colLongQty2').value, 'Long Bar (Group 2)': $('colLongBar2').value,
+      'Apply Lap Splice': $('colApplyLap').value,
+      'Tie Bar': $('colTieBar').value, 'Tie Spacing (mm)': $('colTieSpacingMm').value,
+      'Measured Tie Perimeter (mm)': $('colTiePerimeterMm').value,
+      'Lig Qty per Level': $('colLigQty').value, 'Lig Bar': $('colLigBar').value,
+      'Dowel Mode': $('colDowelMode').value, 'Dowel Bar': $('colDowelBar').value, 'Dowel Manual Qty': $('colDowelManualQty').value,
+      'Dowel Length Override (m)': $('colDowelLengthOverride').value,
+      'Lifting Points': $('colLiftingQty').value, 'Special Accessories': $('colAccessoriesQty').value,
+      'Formwork Area Correction Used': $('colUseCorrectedFormwork').value,
+      'Column Labour Rate Multiplier': $('colUseCorrectedFormwork').value==='yes' ? $('colFormworkMultiplier').value : 'n/a',
+      'Additional Consumables': colConsumablesList.filter(it=>(it.label||'').trim()).map(it=>it.label).join(', ') || 'None',
+      'Waste % — Concrete': $('colWasteConcrete').value, 'Waste % — Steel': $('colWasteSteel').value, 'Waste % — Dowels': $('colWasteDowel').value,
+    },
+    rates: { 'Concrete': costDict[$('colConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
+      'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
+      'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
+  });
+  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  buildSummary();
+  e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
+});
+$('clearSummary').addEventListener('click', ()=>{ summary = []; localStorage.setItem('precast-summary','[]'); buildSummary(); });
+
+// ---------- Excel export (Report + Audit, via SheetJS) ----------
+function exportProjectExcel(){
+  const projName = $('projName').value || 'Untitled Project';
+  const projCode = $('projCode').value || 'N/A';
+  const now = new Date().toISOString().slice(0,16).replace('T',' ');
+
+  const reportRows = [];
+  reportRows.push([`Project: ${projName} (${projCode})`]);
+  reportRows.push([`Generated: ${now} — ${summary.length} group(s)`]);
+  reportRows.push(['PROJECT TOTALS']);
+  summary.forEach(g=> reportRows.push([`${g.type} — ${g.groupId} (Price per ${g.type==='Walls'?'m²':'m³'})`, g.pricePerM3, g.total]));
+  reportRows.push(['GRAND TOTAL', '', summary.reduce((a,g)=>a+g.total,0)]);
+  reportRows.push([]);
+
+  const auditRows = [];
+  auditRows.push([`Project: ${projName} (${projCode})`]);
+  auditRows.push([`Generated: ${now} — ${summary.length} group(s)`]);
+
+  summary.forEach(g=>{
+    reportRows.push([`${g.type} — ${g.groupId}`]);
+    reportRows.push([`Price per ${g.type==='Walls'?'m²':'m³'}`, g.pricePerM3]);
+    reportRows.push(['Total Group Cost', g.total]);
+    reportRows.push(['Item', `$ per ${g.type==='Walls'?'m²':'column/m³'}`]);
+    Object.entries(g.costPerUnit).forEach(([k,v])=> reportRows.push([k, v]));
+    reportRows.push(['Total Cost', g.pricePerM3]);
+    reportRows.push([]);
+
+    auditRows.push([`${g.type} — ${g.groupId}`]);
+    auditRows.push(['INPUTS']);
+    Object.entries(g.inputs).forEach(([k,v])=> auditRows.push([k, v]));
+    auditRows.push(['UNIT RATES USED (from Cost Settings)']);
+    Object.entries(g.rates).forEach(([k,v])=> auditRows.push([k, v]));
+    auditRows.push(['RESULTS']);
+    auditRows.push([`Total Cost per ${g.type==='Walls'?'m²':'m³'} ($) — PRIMARY`, g.pricePerM3]);
+    auditRows.push(['Total Cost ($) — reference', g.total]);
+    auditRows.push([]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(reportRows), 'Report');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(auditRows), 'Audit');
+  XLSX.writeFile(wb, `${projCode || 'project'}_summary.xlsx`);
+}
+$('downloadSummaryExcel').addEventListener('click', exportProjectExcel);
+
+// ---------- Init ----------
+loadCosts(); buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
+$('colConcreteType').value = 'Concrete 65 MPa';
+$('colDowelMode').value = 'manual';
+updateDowelBlocks();
+buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
+calcColumns(); calcWalls(); buildSummary();
+</script>
+</body>
+</html>
