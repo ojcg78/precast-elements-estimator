@@ -24,23 +24,30 @@ body{ margin:0;
 
 .topbar{ background:var(--panel); border-bottom:3px solid var(--blue); display:flex; align-items:stretch; position:sticky; top:0; z-index:30; height:54px; }
 .brand{ display:flex; align-items:center; gap:12px; padding:13px 26px; border-right:1px solid var(--line); }
-.brand .mark{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--blue); border:1.5px solid var(--blue); padding:3px 7px; border-radius:1px; }
+.brand .mark{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#fff; background:var(--blue); padding:4px 8px; border-radius:1px; }
 .brand h1{ font-family:'Archivo',sans-serif; font-weight:700; font-size:19px; margin:0; color:var(--blue); }
 .tb-cell{ padding:13px 22px; border-right:1px solid var(--line); font-family:'IBM Plex Mono',monospace; display:flex; flex-direction:column; justify-content:center; }
 .tb-cell .k{ font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
 .tb-cell .v{ font-size:13px; color:var(--ink); font-weight:500; margin-top:2px; }
 .tb-spacer{ flex:1; }
+.tb-total{ background:var(--blue-soft); border-right:none; }
+.tb-total .v{ color:var(--blue); font-weight:700; font-size:14px; }
 
 .shell{ display:grid; grid-template-columns:216px 1fr; min-height:calc(100vh - 54px); }
-.rail{ background:var(--panel); border-right:1px solid var(--line); padding:20px 12px; position:sticky; top:54px; align-self:start; height:calc(100vh - 54px); overflow-y:auto; }
+.rail{ background:var(--panel); border-right:1px solid var(--line); padding:20px 12px; position:sticky; top:54px; align-self:start; height:calc(100vh - 54px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; }
+.rail::-webkit-scrollbar{ width:6px; }
+.rail::-webkit-scrollbar-track{ background:transparent; }
+.rail::-webkit-scrollbar-thumb{ background:var(--line-strong); border-radius:3px; }
+.rail::-webkit-scrollbar-thumb:hover{ background:var(--blue); }
 .navbtn{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border-radius:2px; border:none; border-left:2px solid transparent; background:transparent; font-family:'IBM Plex Sans',sans-serif; font-size:13.5px; font-weight:500; color:var(--dim); cursor:pointer; margin-bottom:2px; transition:background-color .15s ease, color .15s ease; }
 .navbtn:hover{ background:var(--blue-soft); }
 .navbtn:active{ transform:scale(.98); }
 .navbtn.active{ background:var(--blue-soft); color:var(--blue); border-left:2px solid var(--blue); font-weight:600; }
+.nav-icon{ font-family:'IBM Plex Mono',monospace; font-size:11px; width:16px; text-align:center; color:var(--line-strong); flex-shrink:0; transition:color .15s ease; }
+.navbtn.active .nav-icon, .navbtn:hover .nav-icon{ color:var(--blue); }
 .navbtn[disabled]{ opacity:.45; cursor:not-allowed; }
 .navbtn .tag-soon{ font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.06em; text-transform:uppercase; background:var(--blue-soft); color:var(--blue); padding:2px 5px; border-radius:2px; margin-left:auto; }
-.navbtn{ justify-content:space-between; }
-.nav-dot{ width:7px; height:7px; border-radius:50%; background:var(--amber-line); flex-shrink:0; }
+.nav-dot{ width:7px; height:7px; border-radius:50%; background:var(--amber-line); flex-shrink:0; margin-left:auto; }
 .nav-dot.ready{ background:var(--good); }
 .nav-dot.empty{ background:var(--line-strong); }
 
@@ -57,14 +64,17 @@ body{ margin:0;
 .page-head h2{ font-family:'Archivo',sans-serif; font-size:24px; font-weight:700; margin:6px 0 6px 0; color:var(--ink); }
 .page-head p{ color:var(--dim); font-size:14px; max-width:640px; line-height:1.5; }
 
-.card{ position:relative; background:var(--panel); border:1px solid var(--line-strong); border-radius:2px; padding:20px 22px; margin-bottom:20px; }
+.card{ position:relative; background:var(--panel); border:1px solid var(--line-strong); border-radius:2px; padding:20px 22px; margin-bottom:20px; box-shadow:0 1px 2px rgba(27,58,92,.05), 0 6px 18px rgba(27,58,92,.06); transition:box-shadow .18s ease, transform .18s ease; }
+.card:hover{ box-shadow:0 2px 4px rgba(27,58,92,.06), 0 10px 26px rgba(27,58,92,.09); transform:translateY(-1px); }
+.card:hover .reg{ opacity:1; }
+.card:hover .reg::before, .card:hover .reg::after{ background:var(--blue); }
 .card > h2:first-child{ font-family:'Archivo',sans-serif; font-size:14px; font-weight:700; margin:-20px -22px 18px -22px; padding:12px 22px; border-bottom:2px solid var(--blue); color:var(--blue); text-transform:uppercase; letter-spacing:.03em; position:sticky; top:54px; z-index:15; background:var(--panel); display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .card-tag{ font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.04em; text-transform:none; color:var(--dim); border:1px solid var(--line-strong); padding:3px 9px; border-radius:2px; background:var(--paper); font-weight:500; white-space:nowrap; }
 .card-tag.ready{ color:var(--good); border-color:var(--good); }
 details.card > summary.card-summary{ position:sticky; top:54px; z-index:15; background:var(--panel); margin:-20px -22px 18px -22px; padding:12px 22px; border-bottom:2px solid var(--blue); display:flex; align-items:center; gap:8px; }
-.reg{ position:absolute; width:10px; height:10px; pointer-events:none; }
-.reg::before{ content:''; position:absolute; left:4.5px; top:0; width:1px; height:10px; background:var(--line-strong); }
-.reg::after{ content:''; position:absolute; top:4.5px; left:0; width:10px; height:1px; background:var(--line-strong); }
+.reg{ position:absolute; width:10px; height:10px; pointer-events:none; opacity:.7; transition:opacity .18s ease; }
+.reg::before{ content:''; position:absolute; left:4.5px; top:0; width:1px; height:10px; background:var(--dim); transition:background-color .18s ease; }
+.reg::after{ content:''; position:absolute; top:4.5px; left:0; width:10px; height:1px; background:var(--dim); transition:background-color .18s ease; }
 .reg.tl{ top:8px; left:8px; } .reg.tr{ top:8px; right:8px; } .reg.bl{ bottom:8px; left:8px; } .reg.br{ bottom:8px; right:8px; }
 .card h3{ font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); margin:18px 0 10px 0; padding-top:14px; border-top:1px dashed var(--line-strong); }
 .card h3:first-of-type{ border-top:none; padding-top:0; }
@@ -72,8 +82,12 @@ details.card > summary.card-summary{ position:sticky; top:54px; z-index:15; back
 .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
 @media (max-width:820px){ .grid3,.grid4{ grid-template-columns:1fr 1fr; } }
-.field label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--dim); margin-bottom:5px; }
-.field input, .field select{ width:100%; padding:7px 0 7px 0; border:none; border-bottom:1.5px solid var(--line-strong); border-radius:0; background:transparent; font-family:'IBM Plex Mono',monospace; font-size:13.5px; color:var(--ink); transition:border-color .15s ease; }
+.field{ padding:2px 4px; margin:-2px -4px; border-radius:3px; transition:background-color .15s ease; }
+.field:focus-within{ background:var(--blue-soft); }
+.field label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--dim); margin-bottom:5px; transition:color .15s ease; }
+.field:focus-within label{ color:var(--blue); }
+.field input, .field select{ width:100%; padding:7px 0 7px 0; border:none; border-bottom:1.5px solid var(--line-strong); border-radius:0; background:transparent; font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:500; color:var(--ink); transition:border-color .15s ease; }
+.field input::placeholder{ color:var(--line-strong); font-weight:400; font-style:italic; }
 .field input:hover, .field select:hover{ border-bottom-color:var(--blue); }
 .field input:focus, .field select:focus{ border-bottom-color:var(--blue); outline:none; box-shadow:0 1px 0 var(--blue); }
 
@@ -86,6 +100,8 @@ details.card > summary.card-summary{ position:sticky; top:54px; z-index:15; back
 .rbox.total{ background:var(--blue-soft); }
 .rbox.total .lbl{ color:var(--blue); }
 .rbox.total .val{ color:var(--blue); font-size:22px; }
+@keyframes valueFlash{ 0%{ color:var(--good); } 100%{ color:var(--blue); } }
+.rbox.total .val.flash{ animation:valueFlash .7s ease; }
 
 table.costs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
 table.costs th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); border-bottom:2px solid var(--blue); padding:6px 8px; }
@@ -103,8 +119,8 @@ table.costs tr.total td{ font-weight:600; border-top:2px solid var(--blue); bord
 .cost-chart-row .cc-pct{ color:var(--ink); font-weight:600; width:44px; text-align:right; }
 .cost-chart-row .cc-val{ color:var(--dim); width:80px; text-align:right; }
 
-.btn{ font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:2px; border:1px solid var(--blue); background:var(--blue); color:#fff; cursor:pointer; transition:transform .1s ease, box-shadow .15s ease, background-color .15s ease; }
-.btn:hover{ background:#122A42; box-shadow:0 3px 10px rgba(27,58,92,.25); }
+.btn{ position:relative; font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:13.5px; padding:9px 16px; border-radius:2px; border:1px solid var(--blue); background:var(--blue); color:#fff; cursor:pointer; transition:transform .1s ease, box-shadow .15s ease, background-color .15s ease; box-shadow:inset 0 1px 0 rgba(255,255,255,.12); }
+.btn:hover{ background:#122A42; box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 3px 10px rgba(27,58,92,.25); }
 .btn:active{ transform:scale(.97); }
 .btn.ghost{ background:transparent; color:var(--blue); }
 .btn.ghost:hover{ background:var(--blue-soft); box-shadow:none; }
@@ -139,15 +155,16 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
   <div class="tb-cell"><div class="k">Project</div><div class="v" id="topProjName">—</div></div>
   <div class="tb-cell"><div class="k">Code</div><div class="v" id="topProjCode">—</div></div>
   <div class="tb-spacer"></div>
+  <div class="tb-cell tb-total"><div class="k">Project Total</div><div class="v" id="topProjTotal">$0</div></div>
 </div>
 
 <div class="shell">
   <nav class="rail" id="navRail">
-    <button class="navbtn active" data-page="project">Project</button>
-    <button class="navbtn" data-page="costs">Cost Settings</button>
-    <button class="navbtn" data-page="walls">Walls<span class="nav-dot" id="navDotWalls"></span></button>
-    <button class="navbtn" data-page="columns">Columns<span class="nav-dot" id="navDotColumns"></span></button>
-    <button class="navbtn" data-page="summary">Project Summary</button>
+    <button class="navbtn active" data-page="project"><span class="nav-icon">◆</span>Project</button>
+    <button class="navbtn" data-page="costs"><span class="nav-icon">$</span>Cost Settings</button>
+    <button class="navbtn" data-page="walls"><span class="nav-icon">▬</span>Walls<span class="nav-dot" id="navDotWalls"></span></button>
+    <button class="navbtn" data-page="columns"><span class="nav-icon">▮</span>Columns<span class="nav-dot" id="navDotColumns"></span></button>
+    <button class="navbtn" data-page="summary"><span class="nav-icon">Σ</span>Project Summary</button>
   </nav>
 
   <main class="content">
@@ -857,6 +874,18 @@ $('colUseCorrectedFormwork').addEventListener('change', ()=>{
 });
 
 function fmt(n){ return '$' + (n||0).toLocaleString('en-AU', {maximumFractionDigits:2, minimumFractionDigits:2}); }
+// Briefly flashes a value green when it changes, so updates feel alive rather than static.
+function setValueFlash(id, newText){
+  const el = $(id);
+  if (el.textContent !== newText && el.textContent.trim() !== '' && el.textContent !== '$0.00' && el.textContent !== '—') {
+    el.textContent = newText;
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  } else {
+    el.textContent = newText;
+  }
+}
 
 let colConsumablesList = [];
 
@@ -945,7 +974,7 @@ function calcColumns(){
   }
 
   $('colPricePerColumn').textContent = fmt(cost.pricePerColumn);
-  $('colPricePerM3').textContent = fmt(cost.pricePerM3);
+  setValueFlash('colPricePerM3', fmt(cost.pricePerM3));
   $('colTotalGroup').textContent = fmt(cost.totalGroupCost);
 
   const colTag = $('colStatusTag');
@@ -1289,7 +1318,7 @@ function calcWalls(){
     return result;
   }
   $('wStatusTag').textContent = '✓ READY'; $('wStatusTag').classList.add('ready');
-  $('wPricePerM2').textContent = fmt(result.totalCostPerM2);
+  setValueFlash('wPricePerM2', fmt(result.totalCostPerM2));
   $('wTotalCost').textContent = fmt(result.totalCost);
   renderCostBreakdown('wCostChart', 'wCostTable', result.costPerM2, '$ per m²', 'Total cost per m²', result.totalCostPerM2);
   const extraSteelKg = parseFloat($('wExtraSteelKg').value)||0;
@@ -1346,6 +1375,7 @@ function buildSummary(){
     </tr>`).join('');
   const total = summary.reduce((a,g)=>a+g.total,0);
   $('summaryTotal').textContent = fmt(total);
+  $('topProjTotal').textContent = fmt(total);
 }
 $('summaryTable').addEventListener('input', (e)=>{
   if(e.target.dataset.role !== 'editGroupId') return;
@@ -1512,12 +1542,13 @@ function buildDonutSVG(segments, size){
   const radius = r - strokeWidth/2;
   const circumference = 2*Math.PI*radius;
   let offset = 0;
+  const GAP_PX = 2.5;
   const arcs = segments.filter(s=>s.value>0).map(s=>{
     const frac = s.value/total;
-    const dash = frac*circumference;
+    const dash = Math.max(frac*circumference - GAP_PX, 0);
     const gap = circumference - dash;
     const rotation = (offset/circumference)*360 - 90;
-    offset += dash;
+    offset += frac*circumference;
     return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${s.color}" stroke-width="${strokeWidth}" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" transform="rotate(${rotation.toFixed(2)} ${cx} ${cy})"/>`;
   }).join('');
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${arcs}</svg>`;
