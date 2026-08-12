@@ -1609,6 +1609,14 @@ function markFieldFilled(id, isFilled){
   field.classList.toggle('filled', !!isFilled);
 }
 
+// ---------- Numeric input UX fix ----------
+// Fields default to 0 (clean state). Without this, clicking a "0" field and typing
+// inserts at the cursor position (e.g. "0" + "300" = "0300") instead of replacing it.
+// Selecting the whole value on focus means typing always replaces it cleanly.
+document.addEventListener('focusin', (e)=>{
+  if (e.target.tagName === 'INPUT' && e.target.type === 'number') e.target.select();
+});
+
 // ---------- Init ----------
 loadCosts(); buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
 updateDowelBlocks();
