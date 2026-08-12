@@ -32,6 +32,7 @@ body{ margin:0;
 .tb-spacer{ flex:1; }
 .tb-total{ background:var(--blue-soft); border-right:none; }
 .tb-total .v{ color:var(--blue); font-weight:700; font-size:14px; }
+.tb-total .v.flash{ animation:valueFlash .7s ease; }
 
 .shell{ display:grid; grid-template-columns:216px 1fr; min-height:calc(100vh - 54px); }
 .rail{ background:var(--panel); border-right:1px solid var(--line); padding:20px 12px; position:sticky; top:54px; align-self:start; height:calc(100vh - 54px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; }
@@ -43,7 +44,8 @@ body{ margin:0;
 .navbtn:hover{ background:var(--blue-soft); }
 .navbtn:active{ transform:scale(.98); }
 .navbtn.active{ background:var(--blue-soft); color:var(--blue); border-left:2px solid var(--blue); font-weight:600; }
-.nav-icon{ font-family:'IBM Plex Mono',monospace; font-size:11px; width:16px; text-align:center; color:var(--line-strong); flex-shrink:0; transition:color .15s ease; }
+.nav-icon{ width:16px; height:16px; flex-shrink:0; color:var(--line-strong); transition:color .15s ease; }
+.nav-icon svg{ width:100%; height:100%; display:block; }
 .navbtn.active .nav-icon, .navbtn:hover .nav-icon{ color:var(--blue); }
 .navbtn[disabled]{ opacity:.45; cursor:not-allowed; }
 .navbtn .tag-soon{ font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:.06em; text-transform:uppercase; background:var(--blue-soft); color:var(--blue); padding:2px 5px; border-radius:2px; margin-left:auto; }
@@ -168,11 +170,11 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
 
 <div class="shell">
   <nav class="rail" id="navRail">
-    <button class="navbtn active" data-page="project"><span class="nav-icon">◆</span>Project</button>
-    <button class="navbtn" data-page="costs"><span class="nav-icon">$</span>Cost Settings</button>
-    <button class="navbtn" data-page="walls"><span class="nav-icon">▬</span>Walls<span class="nav-dot" id="navDotWalls"></span></button>
-    <button class="navbtn" data-page="columns"><span class="nav-icon">▮</span>Columns<span class="nav-dot" id="navDotColumns"></span></button>
-    <button class="navbtn" data-page="summary"><span class="nav-icon">Σ</span>Project Summary</button>
+    <button class="navbtn active" data-page="project"><span class="nav-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M5 2.5h7l3 3v12H5V2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 2.5v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>Project</button>
+    <button class="navbtn" data-page="costs"><span class="nav-icon"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6.5v7M12 8c0-1-1-1.5-2-1.5s-2 .5-2 1.5 1 1.3 2 1.5 2 .6 2 1.5-1 1.5-2 1.5-2-.5-2-1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Cost Settings</button>
+    <button class="navbtn" data-page="walls"><span class="nav-icon"><svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="4" width="15" height="12" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v12M13 4v12" stroke="currentColor" stroke-width="1.3"/></svg></span>Walls<span class="nav-dot" id="navDotWalls"></span></button>
+    <button class="navbtn" data-page="columns"><span class="nav-icon"><svg viewBox="0 0 20 20" fill="none"><rect x="5" y="5" width="10" height="10" stroke="currentColor" stroke-width="1.5"/><circle cx="6.8" cy="6.8" r="0.9" fill="currentColor"/><circle cx="13.2" cy="6.8" r="0.9" fill="currentColor"/><circle cx="6.8" cy="13.2" r="0.9" fill="currentColor"/><circle cx="13.2" cy="13.2" r="0.9" fill="currentColor"/></svg></span>Columns<span class="nav-dot" id="navDotColumns"></span></button>
+    <button class="navbtn" data-page="summary"><span class="nav-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 9h14M3 13h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3 16.5h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>Project Summary</button>
   </nav>
 
   <main class="content">
@@ -894,6 +896,26 @@ function setValueFlash(id, newText){
     el.textContent = newText;
   }
 }
+// Animates a hero value counting up/down to its new number, instead of just replacing the
+// text — this is the "live dashboard" feel of premium financial/estimating tools.
+// Short enough duration (280ms) that it still tracks cleanly through rapid keystrokes.
+function animateHeroValue(id, toNumber){
+  const el = $(id);
+  const parsePrev = (t)=> parseFloat((t||'0').replace(/[^0-9.-]/g,'')) || 0;
+  const from = parsePrev(el.textContent);
+  const to = toNumber || 0;
+  const changed = Math.abs(to-from) > 0.005 && el.textContent.trim() !== '' && el.textContent !== '—';
+  if (changed) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  if (Math.abs(to-from) < 0.005) { el.textContent = fmt(to); return; }
+  const duration = 280, start = performance.now();
+  function tick(now){
+    const t = Math.min((now-start)/duration, 1);
+    const eased = 1 - Math.pow(1-t, 3);
+    el.textContent = fmt(from + (to-from)*eased);
+    if (t < 1) requestAnimationFrame(tick); else el.textContent = fmt(to);
+  }
+  requestAnimationFrame(tick);
+}
 
 let colConsumablesList = [];
 
@@ -982,7 +1004,7 @@ function calcColumns(){
   }
 
   $('colPricePerColumn').textContent = fmt(cost.pricePerColumn);
-  setValueFlash('colPricePerM3', fmt(cost.pricePerM3));
+  animateHeroValue('colPricePerM3', cost.pricePerM3);
   $('colTotalGroup').textContent = fmt(cost.totalGroupCost);
 
   const colTag = $('colStatusTag');
@@ -1326,7 +1348,7 @@ function calcWalls(){
     return result;
   }
   $('wStatusTag').textContent = '✓ READY'; $('wStatusTag').classList.add('ready');
-  setValueFlash('wPricePerM2', fmt(result.totalCostPerM2));
+  animateHeroValue('wPricePerM2', result.totalCostPerM2);
   $('wTotalCost').textContent = fmt(result.totalCost);
   renderCostBreakdown('wCostChart', 'wCostTable', result.costPerM2, '$ per m²', 'Total cost per m²', result.totalCostPerM2);
   const extraSteelKg = parseFloat($('wExtraSteelKg').value)||0;
@@ -1382,8 +1404,8 @@ function buildSummary(){
       <td><button class="btn small ghost" data-role="delRow" data-id="${g.id}" aria-label="Remove ${g.groupId}">Remove</button></td>
     </tr>`).join('');
   const total = summary.reduce((a,g)=>a+g.total,0);
-  $('summaryTotal').textContent = fmt(total);
-  $('topProjTotal').textContent = fmt(total);
+  animateHeroValue('summaryTotal', total);
+  animateHeroValue('topProjTotal', total);
 }
 $('summaryTable').addEventListener('input', (e)=>{
   if(e.target.dataset.role !== 'editGroupId') return;
