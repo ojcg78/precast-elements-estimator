@@ -120,6 +120,9 @@ table.costs tbody tr:hover td{ background:var(--blue-soft); }
 table.costs td.num{ text-align:right; }
 table.costs tr.total td{ font-weight:600; border-top:2px solid var(--blue); border-bottom:none; }
 
+.tech-diagram-wrap{ margin-top:18px; padding-top:16px; border-top:1px dashed var(--line-strong); }
+.tech-diagram-label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); margin-bottom:10px; }
+.tech-diagram-empty{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--line-strong); padding:20px 0; }
 .cost-chart{ display:flex; align-items:center; gap:24px; padding:16px 0; border-bottom:1px dashed var(--line-strong); margin-bottom:6px; flex-wrap:wrap; }
 .cost-chart svg{ flex-shrink:0; }
 .cost-chart-legend{ display:flex; flex-direction:column; gap:7px; flex:1; min-width:200px; }
@@ -239,6 +242,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Do the panels have openings?</label><select id="wHasOpenings"><option value="no">No</option><option value="yes">Yes</option></select></div>
           <div class="field" id="wOpeningAreaField" style="display:none;"><label>Total openings area (m²)</label><input type="number" id="wOpeningArea" value="0"></div>
           <div class="field" id="wNumOpeningsField" style="display:none;"><label>Number of openings</label><input type="number" id="wNumOpenings" value="0"></div>
+        </div>
+        <div class="tech-diagram-wrap">
+          <div class="tech-diagram-label">Elevation — average panel</div>
+          <div id="wDiagram"></div>
         </div>
       </details>
 
@@ -368,6 +375,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Cover known? (mm, 0 = assume 30mm)</label><input type="number" id="colCoverMm" value="0"></div>
         </div>
         <div id="colSlendernessWarn"></div>
+        <div class="tech-diagram-wrap">
+          <div class="tech-diagram-label">Section view</div>
+          <div id="colDiagram"></div>
+        </div>
       </details>
 
       <details class="card">
@@ -955,6 +966,8 @@ function calcColumns(){
     $('colSlendernessWarn').innerHTML = '';
   }
 
+  $('colDiagram').innerHTML = buildColumnDiagram(parseFloat($('colWidthMm').value)||0, parseFloat($('colDepthMm').value)||0);
+
   const applyLap = $('colApplyLap').value === 'yes';
   const tiePerimeterOverrideM = (parseFloat($('colTiePerimeterMm').value)||0) / 1000;
 
@@ -1358,6 +1371,8 @@ function calcWalls(){
   markFieldFilled('wConcreteType', !!$('wConcreteType').value);
   $('navDotWalls').className = 'nav-dot ' + (wReady ? 'ready' : 'empty');
 
+  $('wDiagram').innerHTML = buildWallDiagram(avgPanelWidth, avgPanelHeight, thickness);
+
   if(!wReady){
     $('wPricePerM2').textContent = '—';
     $('wTotalCost').textContent = '—';
@@ -1583,6 +1598,41 @@ function categorizeLine(label){
   if (l.includes('wages') || l.includes('shopdrawings') || l.includes('formwork') || l.includes('patching') || l.includes('labour')) return 'Labour';
   return 'Extras & Accessories';
 }
+// ---------- Technical diagrams (real dimension-line drawing conventions) ----------
+function buildDimensionedRect(widthVal, heightVal, widthLabel, heightLabel){
+  if (!(widthVal > 0 && heightVal > 0)) return '<div class="tech-diagram-empty">Enter dimensions to see the drawing</div>';
+  const maxCanvas = 150;
+  const scale = maxCanvas / Math.max(widthVal, heightVal);
+  const w = widthVal*scale, h = heightVal*scale;
+  const padL = 54, padT = 26, padR = 16, padB = 16;
+  const svgW = padL + w + padR, svgH = padT + h + padB;
+  const x0 = padL, y0 = padT;
+  const c = 'var(--dim)', accent = 'var(--blue)';
+  return `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:280px; display:block;">
+    <rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="var(--blue-soft)" stroke="${accent}" stroke-width="1.5"/>
+    <path d="M${x0} ${y0+6} v-6 h6" stroke="${accent}" stroke-width="1" fill="none"/>
+    <path d="M${x0+w-6} ${y0} h6 v6" stroke="${accent}" stroke-width="1" fill="none"/>
+    <path d="M${x0+w} ${y0+h-6} v6 h-6" stroke="${accent}" stroke-width="1" fill="none"/>
+    <path d="M${x0+6} ${y0+h} h-6 v-6" stroke="${accent}" stroke-width="1" fill="none"/>
+    <line x1="${x0}" y1="${y0-12}" x2="${x0+w}" y2="${y0-12}" stroke="${c}" stroke-width="1"/>
+    <line x1="${x0}" y1="${y0-16}" x2="${x0}" y2="${y0-8}" stroke="${c}" stroke-width="1"/>
+    <line x1="${x0+w}" y1="${y0-16}" x2="${x0+w}" y2="${y0-8}" stroke="${c}" stroke-width="1"/>
+    <text x="${x0+w/2}" y="${y0-17}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${c}">${widthLabel}</text>
+    <line x1="${x0-12}" y1="${y0}" x2="${x0-12}" y2="${y0+h}" stroke="${c}" stroke-width="1"/>
+    <line x1="${x0-16}" y1="${y0}" x2="${x0-8}" y2="${y0}" stroke="${c}" stroke-width="1"/>
+    <line x1="${x0-16}" y1="${y0+h}" x2="${x0-8}" y2="${y0+h}" stroke="${c}" stroke-width="1"/>
+    <text x="${x0-17}" y="${y0+h/2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${c}" transform="rotate(-90 ${x0-17} ${y0+h/2})">${heightLabel}</text>
+  </svg>`;
+}
+function buildColumnDiagram(widthMm, depthMm){
+  return buildDimensionedRect(widthMm, depthMm, widthMm+' mm', depthMm+' mm');
+}
+function buildWallDiagram(widthM, heightM, thicknessMm){
+  if (!(widthM > 0 && heightM > 0)) return '<div class="tech-diagram-empty">Enter area, panel count and average height to see the drawing</div>';
+  return buildDimensionedRect(widthM, heightM, widthM.toFixed(2)+' m', heightM.toFixed(2)+' m') +
+    `<div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin-top:8px;">Thickness: ${thicknessMm} mm (not to scale in elevation)</div>`;
+}
+
 function buildDonutSVG(segments, size){
   size = size || 132;
   const total = segments.reduce((a,s)=>a+s.value,0);
