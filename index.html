@@ -418,10 +418,15 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="field"><label>Special accessories per column</label><input type="number" id="colAccessoriesQty" value="0"></div>
         </div>
         <h3>Waste %</h3>
-        <div class="grid4">
-          <div class="field"><label>Concrete</label><input type="number" id="colWasteConcrete" value="0"></div>
-          <div class="field"><label>Reinforcing steel</label><input type="number" id="colWasteSteel" value="0"></div>
-          <div class="field"><label>Dowels</label><input type="number" id="colWasteDowel" value="0"></div>
+        <p id="colWasteNoneMsg" style="color:var(--dim); font-size:13px; margin:10px 0 0 0;">Nothing to apply waste to yet — fill in Geometry and Reinforcement above first.</p>
+        <div class="grid4" id="colWasteApplyAllRow" style="display:none;">
+          <div class="field"><label>Apply this % to all items below</label><input type="number" id="colWasteApplyAllPct" value="0"></div>
+          <div class="field" style="align-self:end;"><button class="btn small ghost" id="colWasteApplyAllBtn" style="width:100%;">Apply to all</button></div>
+        </div>
+        <div class="grid4" style="margin-top:10px;">
+          <div class="field" id="colWasteConcreteField" style="display:none;"><label>Concrete</label><input type="number" id="colWasteConcrete" value="0"></div>
+          <div class="field" id="colWasteSteelField" style="display:none;"><label>Reinforcing steel</label><input type="number" id="colWasteSteel" value="0"></div>
+          <div class="field" id="colWasteDowelField" style="display:none;"><label>Dowels</label><input type="number" id="colWasteDowel" value="0"></div>
         </div>
         <details style="margin-top:14px;"><summary class="sub-summary">Formwork area correction (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Off by default. Columns are usually cast lying on the bed like a beam: the bed face and open top face need no formwork, only the two side faces do. The traditional method (default) uses the full 4-side perimeter instead. Turning this on switches Wages/Shopdrawings/Formwork/Patching to the real 2-face area, scaled by the multiplier below.</span></span></summary>
           <div class="grid4" style="margin-top:10px;">
@@ -977,6 +982,12 @@ function calcColumns(){
   const useCorrectedFormwork = $('colUseCorrectedFormwork').value === 'yes';
   const formworkMultiplier = parseFloat($('colFormworkMultiplier').value)||1;
 
+  updateWasteVisibility({
+    'colWasteConcreteField': volumePerColumn > 0,
+    'colWasteSteelField': reo.reoWeightUsed > 0,
+    'colWasteDowelField': dowels.weight > 0,
+  }, 'colWasteApplyAllRow', 'colWasteNoneMsg');
+
   const consumables = {};
   colConsumablesList.forEach(it=>{
     if ((it.label||'').trim()) consumables[it.label.trim()] = (it.cost||0) * (it.unit==='$/ea' ? (it.qty||0) : 1);
@@ -1241,14 +1252,22 @@ $('wWasteApplyAllBtn').addEventListener('click', ()=>{
   });
   calcWalls();
 });
-function updateWasteVisibility(visibility){
+$('colWasteApplyAllBtn').addEventListener('click', ()=>{
+  const pct = parseFloat($('colWasteApplyAllPct').value)||0;
+  const map = { colWasteConcreteField:'colWasteConcrete', colWasteSteelField:'colWasteSteel', colWasteDowelField:'colWasteDowel' };
+  Object.entries(map).forEach(([fieldId, inputId])=>{
+    if($(fieldId).style.display !== 'none') $(inputId).value = pct;
+  });
+  calcColumns();
+});
+function updateWasteVisibility(visibility, applyAllRowId, noneMsgId){
   let anyVisible = false;
   Object.entries(visibility).forEach(([fieldId, show])=>{
     $(fieldId).style.display = show ? '' : 'none';
     if(show) anyVisible = true;
   });
-  $('wWasteApplyAllRow').style.display = anyVisible ? '' : 'none';
-  $('wWasteNoneMsg').style.display = anyVisible ? 'none' : '';
+  $(applyAllRowId).style.display = anyVisible ? '' : 'none';
+  $(noneMsgId).style.display = anyVisible ? 'none' : '';
 }
 function updateDowelBlocks(){
   const enabled = $('wDowelsEnabled').value === 'yes';
@@ -1282,7 +1301,7 @@ function calcWalls(){
     'wWasteTrimmerField': trimerTotal > 0, 'wWasteUBarField': uBarTotal > 0,
     'wWasteMeshField': meshWeightTotal > 0, 'wWasteReoRateField': reoRateKgTotal > 0,
     'wWasteRipboxField': ripboxQty > 0,
-  });
+  }, 'wWasteApplyAllRow', 'wWasteNoneMsg');
 
   let dowelWeight = 0;
   if($('wDowelsEnabled').value === 'yes'){
