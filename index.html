@@ -405,10 +405,15 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
             <div class="field"><label>Tie bar</label><select id="colTieBar"></select></div>
             <div class="field"><label>Tie spacing (mm)</label><input type="number" id="colTieSpacingMm" value="0"></div>
             <div class="field"><label>Measured tie perimeter (mm, 0 = calculate from W/D/Cover)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Leave at 0 to calculate it from Width, Depth and Cover. Enter it only if a detailed cross-section is available and a single tie's real perimeter (including hooks/crossties) can be measured directly.</span></span></label><input type="number" id="colTiePerimeterMm" value="0"></div>
-            <div class="field"><label>Ligs per tie level</label><input type="number" id="colLigQty" value="0"></div>
+            <div class="field"><label>Ligs per tie level<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Count the extra crossties only, not the outer perimeter tie. If your drawing says "4 ties per set" (outer tie + 3 crossties, e.g. Type C/D/F style details), enter 3 here — the outer tie is already covered by the Tie bar/spacing fields above. These are assumed to cross the SHORTER face (most common case). If one or more cross the longer face instead, use the field below for those.</span></span></label><input type="number" id="colLigQty" value="0"></div>
           </div>
           <div class="grid4" style="margin-top:12px;">
             <div class="field"><label>Lig bar</label><select id="colLigBar"></select></div>
+            <div class="field"><label>Ligs crossing the other way (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Only fill this in if some crossties run across the LONGER face instead of the shorter one (e.g. Type C: 3 cross the short face, 1 crosses the long face — enter 3 above and 1 here). Leave at 0 if all your crossties run the same way, which covers most cases.</span></span></label><input type="number" id="colLigQtyOther" value="0"></div>
+          </div>
+          <div class="grid4" style="margin-top:12px;">
+            <div class="field"><label>Additional closed ties per level (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Only for configurations with a second concentric closed tie (not just open crossties) — common once a column has enough bars to need one, e.g. Type C/D/F style details. Uses the Lig bar selected above.</span></span></label><input type="number" id="colExtraClosedTieQty" value="0"></div>
+            <div class="field"><label>Perimeter of each additional closed tie (mm)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Measure this directly off the cross-section drawing — it depends on exactly which bars that inner tie wraps around, which isn't something the app can work out on its own.</span></span></label><input type="number" id="colExtraClosedTiePerimeterMm" value="0"></div>
           </div>
           <div id="colTieSpacingWarn"></div>
           <div class="tech-diagram-wrap">
@@ -712,7 +717,15 @@ function calculateColumnReinforcement(c) {
   // barras de las caras más largas cruzando el lado corto) — antes usaba siempre
   // "width", lo cual daba un largo/peso incorrecto si depth < width.
   const ligLength = ((Math.min(c.width, c.depth) - 2 * c.cover) + hookAllowanceM(c.ligBar)) * (tieCount * c.ligQty);
-  const ligWeight = ligLength * (steelWeightLookup[c.ligBar] || 0);
+  // Ligs crossing the LONGER face instead (uncommon, but real — e.g. Type C style
+  // details where most crossties go one way and one goes the other).
+  const ligLengthOther = ((Math.max(c.width, c.depth) - 2 * c.cover) + hookAllowanceM(c.ligBar)) * (tieCount * (c.ligQtyOther||0));
+  // A second concentric closed tie (not just an open crosstie) — its perimeter depends
+  // on exactly which bars it wraps, which the app can't derive on its own, so it's a
+  // direct measured entry rather than computed from width/depth like the main tie.
+  const extraClosedTieLength = (c.extraClosedTiePerimeterM||0) * tieCount * (c.extraClosedTieQty||0);
+  const extraClosedTieWeight = extraClosedTieLength * (steelWeightLookup[c.ligBar] || 0);
+  const ligWeight = (ligLength + ligLengthOther) * (steelWeightLookup[c.ligBar] || 0) + extraClosedTieWeight;
 
   const reoWeightFromBars = longWeight1 + longWeight2 + tieWeight + ligWeight;
   const reoRateEstimated = safeDiv(reoWeightFromBars, c.volumePerColumn);
@@ -994,7 +1007,8 @@ function calcColumns(){
     $('colRebarDiagram').innerHTML = buildColumnRebarDiagram(
       parseFloat($('colWidthMm').value)||0, parseFloat($('colDepthMm').value)||0,
       parseFloat($('colCoverMm').value)||0, !!$('colTieBar').value, longQtyTotal,
-      parseFloat($('colLigQty').value)||0
+      parseFloat($('colLigQty').value)||0, parseFloat($('colLigQtyOther').value)||0,
+      parseFloat($('colExtraClosedTieQty').value)||0
     );
     const tieSpacingMm = parseFloat($('colTieSpacingMm').value)||0;
     const smallerDimMm = Math.min(width, depth) * 1000;
@@ -1009,6 +1023,9 @@ function calcColumns(){
     longQty2: parseFloat($('colLongQty2').value)||0, longBar2: $('colLongBar2').value,
     tieBar: $('colTieBar').value, tieSpacingMm: parseFloat($('colTieSpacingMm').value)||0,
     tiePerimeterOverrideM, ligQty: parseFloat($('colLigQty').value)||0, ligBar: $('colLigBar').value,
+    ligQtyOther: parseFloat($('colLigQtyOther').value)||0,
+    extraClosedTieQty: parseFloat($('colExtraClosedTieQty').value)||0,
+    extraClosedTiePerimeterM: (parseFloat($('colExtraClosedTiePerimeterMm').value)||0) / 1000,
     steelMode, reoRateGiven: parseFloat($('colReoRateGiven').value)||0, volumePerColumn,
   });
 
@@ -1092,7 +1109,7 @@ function calcColumns(){
   return cost;
 }
 ['colWidthMm','colDepthMm','colHeightMm','colConcreteType','colGroupVolume','colGroupQtyA','colGroupQtyB','colCoverMm',
- 'colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap','colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigBar',
+ 'colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap','colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigQtyOther','colLigBar','colExtraClosedTieQty','colExtraClosedTiePerimeterMm',
  'colDowelMode','colDowelManualQty','colDowelBar','colDowelLengthOverride',
  'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel','colWasteDowel',
  'colFormworkMultiplier'
@@ -1504,7 +1521,8 @@ $('colAddToSummary').addEventListener('click', (e)=>{
       'Apply Lap Splice': $('colApplyLap').value,
       'Tie Bar': $('colTieBar').value, 'Tie Spacing (mm)': $('colTieSpacingMm').value,
       'Measured Tie Perimeter (mm)': $('colTiePerimeterMm').value,
-      'Lig Qty per Level': $('colLigQty').value, 'Lig Bar': $('colLigBar').value,
+      'Lig Qty per Level (short face)': $('colLigQty').value, 'Lig Qty per Level (long face)': $('colLigQtyOther').value, 'Lig Bar': $('colLigBar').value,
+      'Additional Closed Ties Qty': $('colExtraClosedTieQty').value, 'Additional Closed Tie Perimeter (mm)': $('colExtraClosedTiePerimeterMm').value,
       'Dowel Mode': $('colDowelMode').value, 'Dowel Bar': $('colDowelBar').value, 'Dowel Manual Qty': $('colDowelManualQty').value,
       'Dowel Length Override (m)': $('colDowelLengthOverride').value,
       'Lifting Points': $('colLiftingQty').value, 'Special Accessories': $('colAccessoriesQty').value,
@@ -1675,7 +1693,32 @@ function rectPerimeterPoints(x0, y0, w, h, n){
   }
   return pts;
 }
-function buildColumnRebarDiagram(widthMm, depthMm, coverMm, tieBarPresent, longBarQty, ligQty){
+// Real column bar layout: 4 corner bars, plus any remaining bars split between
+// the two LONGER faces only (short faces just get their corner bars) — matches
+// typical detailing (e.g. "12 bars / 4 ties per set" configurations) far better
+// than spreading bars evenly around the whole perimeter by arc length.
+function rectFaceBarPoints(x0, y0, w, h, n){
+  if (n <= 0) return [];
+  if (n <= 4) return rectPerimeterPoints(x0, y0, w, h, n);
+  const corners = [[x0,y0],[x0+w,y0],[x0+w,y0+h],[x0,y0+h]];
+  const extra = n - 4;
+  const extraA = Math.ceil(extra/2), extraB = extra - extraA;
+  function spread(ax,ay,bx,by,count){
+    const out = [];
+    for(let i=1;i<=count;i++){ const f = i/(count+1); out.push([ax+(bx-ax)*f, ay+(by-ay)*f]); }
+    return out;
+  }
+  const pts = [...corners];
+  if (w >= h){
+    pts.push(...spread(x0,y0,x0+w,y0,extraA));         // top (long) face
+    pts.push(...spread(x0,y0+h,x0+w,y0+h,extraB));      // bottom (long) face
+  } else {
+    pts.push(...spread(x0,y0,x0,y0+h,extraA));          // left (long) face
+    pts.push(...spread(x0+w,y0,x0+w,y0+h,extraB));      // right (long) face
+  }
+  return pts;
+}
+function buildColumnRebarDiagram(widthMm, depthMm, coverMm, tieBarPresent, longBarQty, ligQty, ligQtyOther, extraClosedTieQty){
   if (!(widthMm > 0 && depthMm > 0)) return '<div class="tech-diagram-empty">Enter width and depth to see the section</div>';
   const cover = coverMm > 0 ? coverMm : 30;
   const maxCanvas = 150;
@@ -1691,30 +1734,49 @@ function buildColumnRebarDiagram(widthMm, depthMm, coverMm, tieBarPresent, longB
   if (tieBarPresent){
     inner += `<rect x="${ix0}" y="${iy0}" width="${iw}" height="${ih}" fill="none" stroke="${accent}" stroke-width="1" stroke-dasharray="3 2"/>`;
   }
-  if (ligQty > 0){
-    // Additional ties/crossties drawn as nested closed loops inside the main tie —
-    // matches real detailing (concentric ties holding intermediate bars), not open lines.
-    const maxNest = Math.min(ligQty, Math.floor(Math.min(iw, ih) / 8));
-    const step = (Math.min(iw, ih) * 0.34) / (maxNest + 1);
-    for (let i=1;i<=maxNest;i++){
-      const inset = step*i;
-      const lw = iw - 2*inset, lh = ih - 2*inset;
-      if (lw > 4 && lh > 4){
-        inner += `<rect x="${ix0+inset}" y="${iy0+inset}" width="${lw}" height="${lh}" fill="none" stroke="${ligColor}" stroke-width="1"/>`;
+  const tick = 3; // small hook tick length at each leg end, like the 135° hook marks on real details
+  // Draws `count` crossties spanning the SHORT side of the given box, evenly spaced
+  // along the LONG side — used both for the standard direction (spans the section's
+  // own short face) and the "other way" set (spans the section's long face, so the
+  // box is passed pre-rotated: swap which dimension is being treated as "short").
+  function drawLigSet(count, spanWidthWise){
+    if (count <= 0) return '';
+    let s = '';
+    for (let i=1;i<=count;i++){
+      const f = i/(count+1);
+      if (spanWidthWise){
+        // spans across iw (drawn horizontally), spaced down ih
+        const ly = iy0 + ih*f;
+        s += `<line x1="${ix0}" y1="${ly}" x2="${ix0+iw}" y2="${ly}" stroke="${ligColor}" stroke-width="1"/>`;
+        s += `<line x1="${ix0+tick}" y1="${ly-tick}" x2="${ix0}" y2="${ly}" stroke="${ligColor}" stroke-width="1"/>`;
+        s += `<line x1="${ix0+iw-tick}" y1="${ly+tick}" x2="${ix0+iw}" y2="${ly}" stroke="${ligColor}" stroke-width="1"/>`;
+      } else {
+        // spans across ih (drawn vertically), spaced along iw
+        const lx = ix0 + iw*f;
+        s += `<line x1="${lx}" y1="${iy0}" x2="${lx}" y2="${iy0+ih}" stroke="${ligColor}" stroke-width="1"/>`;
+        s += `<line x1="${lx-tick}" y1="${iy0+tick}" x2="${lx}" y2="${iy0}" stroke="${ligColor}" stroke-width="1"/>`;
+        s += `<line x1="${lx+tick}" y1="${iy0+ih-tick}" x2="${lx}" y2="${iy0+ih}" stroke="${ligColor}" stroke-width="1"/>`;
       }
     }
+    return s;
   }
+  // Standard ligs span the section's short face; the "other way" set spans the long face.
+  inner += drawLigSet(ligQty, /*spanWidthWise=*/ w < h);
+  inner += drawLigSet(ligQtyOther||0, /*spanWidthWise=*/ w >= h);
   if (longBarQty > 0){
     const r = Math.max(2, Math.min(3.4, scale*8));
-    rectPerimeterPoints(ix0, iy0, iw, ih, longBarQty).forEach(([px,py])=>{
+    rectFaceBarPoints(ix0, iy0, iw, ih, longBarQty).forEach(([px,py])=>{
       inner += `<circle cx="${px}" cy="${py}" r="${r}" fill="${accent}"/>`;
     });
   }
   const legendItems = [];
   if (longBarQty > 0) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:7px; height:7px; border-radius:50%; background:${accent}; display:inline-block;"></span>Longitudinal</span>`);
   if (tieBarPresent) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:0; border-top:1.5px dashed ${accent}; display:inline-block;"></span>Tie</span>`);
-  if (ligQty > 0) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:9px; height:7px; border:1.3px solid ${ligColor}; display:inline-block;"></span>Ligs (nested ties)</span>`);
+  if (ligQty > 0 || (ligQtyOther||0) > 0) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:0; border-top:1.5px solid ${ligColor}; display:inline-block;"></span>Ligs / crossties</span>`);
   const legend = legendItems.length ? `<div style="display:flex; gap:14px; margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:${dim};">${legendItems.join('')}</div>` : '';
+  const extraTieNote = (extraClosedTieQty||0) > 0
+    ? `<div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:${dim}; margin-top:6px;">+ ${extraClosedTieQty} additional closed tie${extraClosedTieQty>1?'s':''} per level included in the steel weight — not drawn to scale, since its exact shape depends on which bars it wraps.</div>`
+    : '';
   return `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:280px; display:block;">
     <rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="var(--blue-soft)" stroke="${accent}" stroke-width="1.5"/>
     ${inner}
@@ -1726,7 +1788,7 @@ function buildColumnRebarDiagram(widthMm, depthMm, coverMm, tieBarPresent, longB
     <line x1="${x0-16}" y1="${y0}" x2="${x0-8}" y2="${y0}" stroke="${dim}" stroke-width="1"/>
     <line x1="${x0-16}" y1="${y0+h}" x2="${x0-8}" y2="${y0+h}" stroke="${dim}" stroke-width="1"/>
     <text x="${x0-17}" y="${y0+h/2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${dim}" transform="rotate(-90 ${x0-17} ${y0+h/2})">${depthMm} mm</text>
-  </svg>${legend}`;
+  </svg>${legend}${extraTieNote}`;
 }
 function buildWallDiagram(widthM, heightM, thicknessMm){
   if (!(widthM > 0 && heightM > 0)) return '<div class="tech-diagram-empty">Enter area, panel count and average height to see the drawing</div>';
