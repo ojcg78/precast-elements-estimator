@@ -901,11 +901,29 @@ function loadCosts(){
   catch(e){ costDict = {...DEFAULT_COSTS}; }
 }
 function saveCosts(){ localStorage.setItem('precast-costs', JSON.stringify(costDict)); }
+// Groups cost lines into the same conceptual categories used elsewhere in the app
+// (cost composition chart), so a 27-line flat list becomes scannable sections
+// instead of an unordered wall of fields.
+function categorizeRate(name){
+  if (name.includes('MPa') || name === 'Concrete Testing') return 'Concrete';
+  if (/^(RL|SL)/.test(name)) return 'Mesh';
+  if (['Steel Bars','Ripbox','Ferrule with chair','Threadbar','Couplers'].includes(name)) return 'Reinforcing Steel & Connections';
+  if (['Wages','Shopdrawings','Formwork','Patching'].includes(name)) return 'Labour';
+  return 'Lifting & Accessories';
+}
+const RATE_CATEGORY_ORDER = ['Concrete','Reinforcing Steel & Connections','Mesh','Labour','Lifting & Accessories'];
 function buildCostLines(){
-  $('costLines').innerHTML = Object.entries(costDict).map(([name,val])=>`
-    <div class="grid4" style="margin-bottom:8px; align-items:end;">
-      <div class="field" style="grid-column:span 3;"><label>${name}</label></div>
-      <div class="field"><input type="number" step="0.01" value="${val}" data-cost="${name}"></div>
+  const groups = {};
+  Object.entries(costDict).forEach(([name,val])=>{
+    const cat = categorizeRate(name);
+    (groups[cat] = groups[cat] || []).push([name,val]);
+  });
+  $('costLines').innerHTML = RATE_CATEGORY_ORDER.filter(cat=>groups[cat]).map(cat => `
+    <h3>${cat}</h3>
+    <div class="grid4">
+      ${groups[cat].map(([name,val])=>`
+        <div class="field"><label>${name}</label><input type="number" step="0.01" value="${val}" data-cost="${name}"></div>
+      `).join('')}
     </div>`).join('');
   document.querySelectorAll('[data-cost]').forEach(inp=>{
     inp.addEventListener('input', ()=>{
