@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#F4F6F7; --panel:#FFFFFF; --line:#C7D0D6; --line-strong:#8FA0AC;
-  --ink:#1C2B36; --dim:#5D6E78; --blue:#1B3A5C; --blue-soft:#E4EBF0;
-  --red:#B23A2E; --good:#2F7D4F; --amber-bg:#FBEBCE; --amber-line:#D8A83D; --amber-ink:#7A5A17;
+  --paper:#F4F6F7; --panel:#FFFFFF; --line:#C7D0D6; --line-strong:#8592A0;
+  --ink:#1C2B36; --dim:#4A5560; --blue:#0A2647; --blue-soft:#DCE6F0;
+  --red:#B8341F; --good:#2F7D4F; --amber-bg:#FBEBCE; --amber-line:#D4A017; --amber-ink:#7A5A17;
 }
 *{box-sizing:border-box;}
 body{ margin:0;
@@ -30,8 +30,9 @@ body{ margin:0;
 .tb-cell .k{ font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
 .tb-cell .v{ font-size:13px; color:var(--ink); font-weight:500; margin-top:2px; }
 .tb-spacer{ flex:1; }
-.tb-total{ background:var(--blue-soft); border-right:none; }
-.tb-total .v{ color:var(--blue); font-weight:700; font-size:14px; }
+.tb-total{ background:linear-gradient(135deg, var(--blue), #123863); border-right:none; }
+.tb-total .k{ color:#AEC3DA; }
+.tb-total .v{ color:#fff; font-weight:700; font-size:14px; }
 .tb-total .v.flash{ animation:valueFlash .7s ease; }
 
 .shell{ display:grid; grid-template-columns:216px 1fr; min-height:calc(100vh - 54px); }
@@ -107,10 +108,10 @@ details.card > summary.card-summary{ position:sticky; top:54px; z-index:15; back
 .rbox:last-child{ border-right:none; }
 .rbox .lbl{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; }
 .rbox .val{ font-family:'Archivo',sans-serif; font-size:19px; font-weight:700; margin-top:6px; color:var(--ink); }
-.rbox.total{ background:var(--blue-soft); }
-.rbox.total .lbl{ color:var(--blue); }
-.rbox.total .val{ color:var(--blue); font-size:22px; }
-@keyframes valueFlash{ 0%{ color:var(--good); } 100%{ color:var(--blue); } }
+.rbox.total{ background:linear-gradient(135deg, var(--blue), #123863); }
+.rbox.total .lbl{ color:#AEC3DA; }
+.rbox.total .val{ color:#fff; font-size:22px; }
+@keyframes valueFlash{ 0%{ color:var(--good); } 100%{ color:#fff; } }
 .rbox.total .val.flash{ animation:valueFlash .7s ease; }
 
 table.costs{ width:100%; border-collapse:collapse; font-size:13.5px; margin-top:6px; }
@@ -555,18 +556,23 @@ function calculateRebarWeight(area, spacingH, spacingV, barTypeH, barTypeV, plac
   spacingV = spacingV ? spacingV / 1000 : 0;
   let totalWeightM2 = 0;
 
+  // CORREGIDO: cada barra debe usar SU PROPIO espaciamiento (el que el usuario cargó
+  // junto a esa barra en la UI: "Horizontal bar" + "Horizontal spacing" van juntos),
+  // no el de la otra dirección. Antes estaban cruzados: las barras horizontales usaban
+  // el espaciamiento vertical y viceversa, lo cual daba un peso incorrecto salvo que
+  // ambos espaciamientos coincidieran por casualidad.
   if (barTypeH) {
     const diameterH = barDiameterLookup[barTypeH];
     const lapFactorH = applyLap ? 1 + (40 * diameterH / 6000) : 1;
     const placementFactorH = placementH === 'EF' ? 2 : 1;
-    const barsPerMeterH = spacingV > 0 ? 1 / spacingV : 0;
+    const barsPerMeterH = spacingH > 0 ? 1 / spacingH : 0;
     totalWeightM2 += barsPerMeterH * lapFactorH * placementFactorH * steelWeightLookup[barTypeH];
   }
   if (barTypeV) {
     const diameterV = barDiameterLookup[barTypeV];
     const lapFactorV = applyLap ? 1 + (40 * diameterV / 6000) : 1;
     const placementFactorV = placementV === 'EF' ? 2 : 1;
-    const barsPerMeterV = spacingH > 0 ? 1 / spacingH : 0;
+    const barsPerMeterV = spacingV > 0 ? 1 / spacingV : 0;
     totalWeightM2 += barsPerMeterV * lapFactorV * placementFactorV * steelWeightLookup[barTypeV];
   }
   return { weightM2: totalWeightM2, weightTotal: totalWeightM2 * area };
@@ -1650,11 +1656,11 @@ function addRegistrationMarks(){
 
 // ---------- Cost composition: category grouping + donut chart ----------
 const CATEGORY_COLORS = {
-  'Concrete': '#5D6E78',
-  'Reinforcing Steel': '#1B3A5C',
-  'Dowels & Connections': '#3E7C8C',
-  'Labour': '#B23A2E',
-  'Extras & Accessories': '#D8A83D',
+  'Concrete': '#37424D',
+  'Reinforcing Steel': '#0A2647',
+  'Dowels & Connections': '#0E7C7B',
+  'Labour': '#B8341F',
+  'Extras & Accessories': '#D4A017',
 };
 function categorizeLine(label){
   const l = label.toLowerCase();
