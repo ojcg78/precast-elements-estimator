@@ -267,6 +267,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         </div>
         <p style="color:var(--dim); font-size:13px; margin:10px 0 0 0;">Each section is a full set of horizontal/vertical bars, mesh, trimer bar and U-bar — add as many as the drawing has layers for. Their weights all add up. Leave collapsed and use Reo Rate above if you don't need this level of detail.</p>
         <div id="wSections" style="margin-top:14px;"></div>
+        <div class="tech-diagram-wrap">
+          <div class="tech-diagram-label">Elevation — reinforcement layout (indicative)</div>
+          <div id="wRebarDiagram"></div>
+        </div>
       </details>
 
       <details class="card">
@@ -527,6 +531,16 @@ const meshWeightLookup = {
   RL918: 6.53, SL102: 5.57, SL62: 2.29, SL72: 2.83, SL81: 7.27,
   SL82: 3.63, SL92: 4.55
 };
+// Standard AS/NZS 4671 spacing by mesh designation — SL (square) is 200x200mm
+// throughout the range; RL (rectangular) is 100mm in the main wire direction and
+// 200mm cross-wise. Used only for the schematic diagram (the weight calc already
+// uses the tabulated $/m² rate above, unaffected by this).
+function meshSpacingMm(meshType){
+  if (!meshType) return null;
+  if (meshType.startsWith('RL')) return { main: 100, cross: 200 };
+  if (meshType.startsWith('SL')) return { main: 200, cross: 200 };
+  return null;
+}
 
 function safeDiv(n, d) {
   return (d !== undefined && d !== null && d > 0) ? n / d : 0.0;
@@ -1421,6 +1435,9 @@ function calcWalls(){
 
   $('wDiagram').innerHTML = buildWallDiagram(avgPanelWidth, avgPanelHeight, thickness);
 
+  const sectionsWithContent = wallSections.filter(s => s.horizontalBar || s.verticalBar || (s.meshEnabled && s.meshType) || s.trimerType || s.uBarType);
+  $('wRebarDiagram').innerHTML = buildWallRebarDiagram(avgPanelWidth, avgPanelHeight, sectionsWithContent[0], Math.max(0, sectionsWithContent.length - 1));
+
   if(!wReady){
     $('wPricePerM2').textContent = '—';
     $('wTotalCost').textContent = '—';
@@ -1794,6 +1811,77 @@ function buildWallDiagram(widthM, heightM, thicknessMm){
   if (!(widthM > 0 && heightM > 0)) return '<div class="tech-diagram-empty">Enter area, panel count and average height to see the drawing</div>';
   return buildDimensionedRect(widthM, heightM, widthM.toFixed(2)+' m', heightM.toFixed(2)+' m') +
     `<div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--dim); margin-top:8px;">Thickness: ${thicknessMm} mm (not to scale in elevation)</div>`;
+}
+// Draws the panel outline with a schematic reo grid (bars or mesh), a doubled trimmer
+// line around the perimeter if a trimmer bar is set, and simple hook marks for a U-bar
+// on whichever edge it's placed on. Shows the first section that actually has content —
+// if there's more than one, a note lists how many extra sections aren't drawn.
+function buildWallRebarDiagram(widthM, heightM, section, extraSectionsCount){
+  if (!(widthM > 0 && heightM > 0)) return '<div class="tech-diagram-empty">Enter wall area, panel count and average height to see the drawing</div>';
+  const maxCanvas = 150;
+  const scale = maxCanvas / Math.max(widthM, heightM);
+  const w = widthM*scale, h = heightM*scale;
+  const padL = 54, padT = 26, padR = 16, padB = 16;
+  const svgW = padL + w + padR, svgH = padT + h + padB;
+  const x0 = padL, y0 = padT;
+  const dim = 'var(--dim)', accent = 'var(--blue)', trimColor = 'var(--red)', gridColor = 'var(--blue)';
+  let inner = '';
+  const legendItems = [];
+
+  const useMesh = !!(section && section.meshEnabled && section.meshType);
+  const hasBars = !!(section && (section.horizontalBar || section.verticalBar) && !useMesh);
+  if (useMesh || hasBars){
+    // Real bar spacing when known; the mesh's actual standard spacing (AS/NZS 4671)
+    // when it's mesh — main wire direction assumed vertical (typical wall panel
+    // orientation), cross wire horizontal. Still schematic if that orientation differs.
+    const meshSp = useMesh ? meshSpacingMm(section.meshType) : null;
+    const hSpacingMm = useMesh ? (meshSp ? meshSp.cross : 200) : (section.horizontalSpacing||0);
+    const vSpacingMm = useMesh ? (meshSp ? meshSp.main : 200) : (section.verticalSpacing||0);
+    const maxLines = 14;
+    const hCountRaw = hSpacingMm > 0 ? Math.round((heightM*1000)/hSpacingMm) : 0;
+    const vCountRaw = vSpacingMm > 0 ? Math.round((widthM*1000)/vSpacingMm) : 0;
+    const hCount = Math.max(0, Math.min(hCountRaw, maxLines));
+    const vCount = Math.max(0, Math.min(vCountRaw, maxLines));
+    for (let i=1;i<hCount;i++){
+      const ly = y0 + h*(i/hCount);
+      inner += `<line x1="${x0}" y1="${ly}" x2="${x0+w}" y2="${ly}" stroke="${gridColor}" stroke-width="0.75" opacity="0.6"/>`;
+    }
+    for (let i=1;i<vCount;i++){
+      const lx = x0 + w*(i/vCount);
+      inner += `<line x1="${lx}" y1="${y0}" x2="${lx}" y2="${y0+h}" stroke="${gridColor}" stroke-width="0.75" opacity="0.6"/>`;
+    }
+    legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:0; border-top:1px solid ${gridColor}; opacity:.6; display:inline-block;"></span>${useMesh ? `Mesh ${section.meshType} (${vSpacingMm}×${hSpacingMm}mm)` : 'Bars (H+V)'}</span>`);
+  }
+  if (section && section.trimerType){
+    const inset = 4;
+    inner += `<rect x="${x0+inset}" y="${y0+inset}" width="${w-2*inset}" height="${h-2*inset}" fill="none" stroke="${trimColor}" stroke-width="1"/>`;
+    legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:9px; height:7px; border:1px solid ${trimColor}; display:inline-block;"></span>Trimmer bar</span>`);
+  }
+  if (section && section.uBarType){
+    const loc = section.uBarLocation || 'Side';
+    const uCount = 5, tick = 5;
+    for (let i=1;i<uCount;i++){
+      const f = i/uCount;
+      if (loc === 'Top'){
+        const lx = x0 + w*f;
+        inner += `<path d="M${lx-tick/2} ${y0} v${tick} M${lx+tick/2} ${y0} v${tick}" stroke="${trimColor}" stroke-width="1" fill="none"/>`;
+      } else if (loc === 'Bottom'){
+        const lx = x0 + w*f;
+        inner += `<path d="M${lx-tick/2} ${y0+h} v-${tick} M${lx+tick/2} ${y0+h} v-${tick}" stroke="${trimColor}" stroke-width="1" fill="none"/>`;
+      } else {
+        const ly = y0 + h*f;
+        inner += `<path d="M${x0} ${ly-tick/2} h${tick} M${x0} ${ly+tick/2} h${tick}" stroke="${trimColor}" stroke-width="1" fill="none"/>`;
+      }
+    }
+    legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:7px; height:7px; border-left:1.5px solid ${trimColor}; border-right:1.5px solid ${trimColor}; display:inline-block;"></span>U-Bar (${loc})</span>`);
+  }
+  const legend = legendItems.length ? `<div style="display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:${dim};">${legendItems.join('')}</div>` : '';
+  const extraNote = (extraSectionsCount||0) > 0
+    ? `<div style="font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:${dim}; margin-top:6px;">+ ${extraSectionsCount} additional reinforcement section${extraSectionsCount>1?'s':''} included in the steel weight — not shown here.</div>` : '';
+  return `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:280px; display:block;">
+    <rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="var(--blue-soft)" stroke="${accent}" stroke-width="1.5"/>
+    ${inner}
+  </svg>${legend}${extraNote}`;
 }
 
 function buildDonutSVG(segments, size){
