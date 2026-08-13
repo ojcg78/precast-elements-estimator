@@ -410,6 +410,11 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
           <div class="grid4" style="margin-top:12px;">
             <div class="field"><label>Lig bar</label><select id="colLigBar"></select></div>
           </div>
+          <div id="colTieSpacingWarn"></div>
+          <div class="tech-diagram-wrap">
+            <div class="tech-diagram-label">Section — reinforcement layout (indicative)</div>
+            <div id="colRebarDiagram"></div>
+          </div>
         </div>
         <h3>Dowels</h3>
         <div class="grid4">
@@ -678,6 +683,15 @@ function calculateColumnReinforcement(c) {
     const lapLength = applyLap ? (40 * diameter / 1000) : 0;
     return qty * (baseLength + lapLength);
   }
+  // Practical estimating allowance for a closed tie/lig's hook length: 6× the bar's
+  // own diameter per hook end (135° hook), or 75mm minimum per end, whichever is
+  // larger — ×2 because a closed loop has two hook ends. Scales with whichever bar
+  // is actually selected (tie bar and lig bar can differ), instead of a flat constant.
+  function hookAllowanceM(barType) {
+    const diameter = barDiameterLookup[barType] || 0;
+    if (diameter <= 0) return 0.14; // no bar selected yet — fall back to the old flat estimate
+    return (2 * Math.max(6 * diameter, 75)) / 1000;
+  }
 
   const longLength1 = barLengthWithLap(c.longQty, c.avgHeight, c.longBar, c.applyLap);
   const longWeight1 = longLength1 * (steelWeightLookup[c.longBar] || 0);
@@ -690,11 +704,14 @@ function calculateColumnReinforcement(c) {
   const tieCount = (tieSpacingM > 0 && c.avgHeight > 0) ? Math.ceil(c.avgHeight / tieSpacingM) + 1 : 0;
   const tiePerimeter = c.tiePerimeterOverrideM > 0
     ? c.tiePerimeterOverrideM
-    : 2 * ((c.width - 2 * c.cover) + (c.depth - 2 * c.cover)) + 0.14;
+    : 2 * ((c.width - 2 * c.cover) + (c.depth - 2 * c.cover)) + hookAllowanceM(c.tieBar);
   const tieLength = tiePerimeter * tieCount;
   const tieWeight = tieLength * (steelWeightLookup[c.tieBar] || 0);
 
-  const ligLength = ((c.width - 2 * c.cover) + 0.14) * (tieCount * c.ligQty);
+  // CORREGIDO: los ligs atraviesan la dimensión MENOR de la sección (conectan las
+  // barras de las caras más largas cruzando el lado corto) — antes usaba siempre
+  // "width", lo cual daba un largo/peso incorrecto si depth < width.
+  const ligLength = ((Math.min(c.width, c.depth) - 2 * c.cover) + hookAllowanceM(c.ligBar)) * (tieCount * c.ligQty);
   const ligWeight = ligLength * (steelWeightLookup[c.ligBar] || 0);
 
   const reoWeightFromBars = longWeight1 + longWeight2 + tieWeight + ligWeight;
@@ -972,6 +989,20 @@ function calcColumns(){
   const tiePerimeterOverrideM = (parseFloat($('colTiePerimeterMm').value)||0) / 1000;
 
   const steelMode = $('colSteelMode').value;
+  if (steelMode === 'barDetail') {
+    const longQtyTotal = (parseFloat($('colLongQty').value)||0) + (parseFloat($('colLongQty2').value)||0);
+    $('colRebarDiagram').innerHTML = buildColumnRebarDiagram(
+      parseFloat($('colWidthMm').value)||0, parseFloat($('colDepthMm').value)||0,
+      parseFloat($('colCoverMm').value)||0, !!$('colTieBar').value, longQtyTotal,
+      parseFloat($('colLigQty').value)||0
+    );
+    const tieSpacingMm = parseFloat($('colTieSpacingMm').value)||0;
+    const smallerDimMm = Math.min(width, depth) * 1000;
+    $('colTieSpacingWarn').innerHTML = (tieSpacingMm > 0 && smallerDimMm > 0 && tieSpacingMm > smallerDimMm)
+      ? `<div class="warn-box">Tie spacing (${tieSpacingMm} mm) exceeds the smaller column dimension (${smallerDimMm.toFixed(0)} mm) — tie spacing should not exceed the smaller column dimension.</div>` : '';
+  } else {
+    $('colTieSpacingWarn').innerHTML = '';
+  }
   const reo = calculateColumnReinforcement({
     width, depth, avgHeight, cover, applyLap,
     longQty: parseFloat($('colLongQty').value)||0, longBar: $('colLongBar').value,
@@ -1626,6 +1657,76 @@ function buildDimensionedRect(widthVal, heightVal, widthLabel, heightLabel){
 }
 function buildColumnDiagram(widthMm, depthMm){
   return buildDimensionedRect(widthMm, depthMm, widthMm+' mm', depthMm+' mm');
+}
+// Distributes n points evenly by arc-length around a rectangle's perimeter — a
+// reasonable indicative sketch of typical longitudinal bar spacing, not shop detail.
+function rectPerimeterPoints(x0, y0, w, h, n){
+  if (n <= 0) return [];
+  const perim = 2*(w+h);
+  const pts = [];
+  for(let i=0;i<n;i++){
+    const d = (i/n)*perim;
+    let x, y;
+    if (d < w) { x = x0+d; y = y0; }
+    else if (d < w+h) { x = x0+w; y = y0+(d-w); }
+    else if (d < 2*w+h) { x = x0+w-(d-w-h); y = y0+h; }
+    else { x = x0; y = y0+h-(d-2*w-h); }
+    pts.push([x,y]);
+  }
+  return pts;
+}
+function buildColumnRebarDiagram(widthMm, depthMm, coverMm, tieBarPresent, longBarQty, ligQty){
+  if (!(widthMm > 0 && depthMm > 0)) return '<div class="tech-diagram-empty">Enter width and depth to see the section</div>';
+  const cover = coverMm > 0 ? coverMm : 30;
+  const maxCanvas = 150;
+  const scale = maxCanvas / Math.max(widthMm, depthMm);
+  const w = widthMm*scale, h = depthMm*scale;
+  const c = cover*scale;
+  const padL = 54, padT = 26, padR = 16, padB = 16;
+  const svgW = padL + w + padR, svgH = padT + h + padB;
+  const x0 = padL, y0 = padT;
+  const dim = 'var(--dim)', accent = 'var(--blue)', ligColor = 'var(--red)';
+  const ix0 = x0+c, iy0 = y0+c, iw = w-2*c, ih = h-2*c;
+  let inner = '';
+  if (tieBarPresent){
+    inner += `<rect x="${ix0}" y="${iy0}" width="${iw}" height="${ih}" fill="none" stroke="${accent}" stroke-width="1" stroke-dasharray="3 2"/>`;
+  }
+  if (ligQty > 0){
+    // Additional ties/crossties drawn as nested closed loops inside the main tie —
+    // matches real detailing (concentric ties holding intermediate bars), not open lines.
+    const maxNest = Math.min(ligQty, Math.floor(Math.min(iw, ih) / 8));
+    const step = (Math.min(iw, ih) * 0.34) / (maxNest + 1);
+    for (let i=1;i<=maxNest;i++){
+      const inset = step*i;
+      const lw = iw - 2*inset, lh = ih - 2*inset;
+      if (lw > 4 && lh > 4){
+        inner += `<rect x="${ix0+inset}" y="${iy0+inset}" width="${lw}" height="${lh}" fill="none" stroke="${ligColor}" stroke-width="1"/>`;
+      }
+    }
+  }
+  if (longBarQty > 0){
+    const r = Math.max(2, Math.min(3.4, scale*8));
+    rectPerimeterPoints(ix0, iy0, iw, ih, longBarQty).forEach(([px,py])=>{
+      inner += `<circle cx="${px}" cy="${py}" r="${r}" fill="${accent}"/>`;
+    });
+  }
+  const legendItems = [];
+  if (longBarQty > 0) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:7px; height:7px; border-radius:50%; background:${accent}; display:inline-block;"></span>Longitudinal</span>`);
+  if (tieBarPresent) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:0; border-top:1.5px dashed ${accent}; display:inline-block;"></span>Tie</span>`);
+  if (ligQty > 0) legendItems.push(`<span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:9px; height:7px; border:1.3px solid ${ligColor}; display:inline-block;"></span>Ligs (nested ties)</span>`);
+  const legend = legendItems.length ? `<div style="display:flex; gap:14px; margin-top:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:${dim};">${legendItems.join('')}</div>` : '';
+  return `<svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:280px; display:block;">
+    <rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="var(--blue-soft)" stroke="${accent}" stroke-width="1.5"/>
+    ${inner}
+    <line x1="${x0}" y1="${y0-12}" x2="${x0+w}" y2="${y0-12}" stroke="${dim}" stroke-width="1"/>
+    <line x1="${x0}" y1="${y0-16}" x2="${x0}" y2="${y0-8}" stroke="${dim}" stroke-width="1"/>
+    <line x1="${x0+w}" y1="${y0-16}" x2="${x0+w}" y2="${y0-8}" stroke="${dim}" stroke-width="1"/>
+    <text x="${x0+w/2}" y="${y0-17}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${dim}">${widthMm} mm</text>
+    <line x1="${x0-12}" y1="${y0}" x2="${x0-12}" y2="${y0+h}" stroke="${dim}" stroke-width="1"/>
+    <line x1="${x0-16}" y1="${y0}" x2="${x0-8}" y2="${y0}" stroke="${dim}" stroke-width="1"/>
+    <line x1="${x0-16}" y1="${y0+h}" x2="${x0-8}" y2="${y0+h}" stroke="${dim}" stroke-width="1"/>
+    <text x="${x0-17}" y="${y0+h/2}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${dim}" transform="rotate(-90 ${x0-17} ${y0+h/2})">${depthMm} mm</text>
+  </svg>${legend}`;
 }
 function buildWallDiagram(widthM, heightM, thicknessMm){
   if (!(widthM > 0 && heightM > 0)) return '<div class="tech-diagram-empty">Enter area, panel count and average height to see the drawing</div>';
