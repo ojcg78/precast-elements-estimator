@@ -1041,9 +1041,18 @@ function animateHeroValue(id, toNumber){
   const to = toNumber || 0;
   const changed = Math.abs(to-from) > 0.005 && el.textContent.trim() !== '' && el.textContent !== '—';
   if (changed) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  // CORREGIDO: cada llamada invalida cualquier animación anterior en curso para este mismo
+  // elemento. Sin esto, muchas llamadas rápidas seguidas (ej. al restaurar un grupo completo
+  // vía Edit/Duplicate, que dispara ~35 recálculos en sucesión) podían encimar varios loops
+  // de requestAnimationFrame escribiendo al mismo textContent, dejando un valor a mitad de
+  // camino de una animación vieja en vez del valor final correcto — un número "fantasma"
+  // matemáticamente inconsistente con el resto de la pantalla.
+  const myGen = (parseInt(el.dataset.animGen || '0', 10) + 1);
+  el.dataset.animGen = String(myGen);
   if (Math.abs(to-from) < 0.005) { el.textContent = fmt(to); return; }
   const duration = 280, start = performance.now();
   function tick(now){
+    if (el.dataset.animGen !== String(myGen)) return; // una animación más nueva tomó el control
     const t = Math.min((now-start)/duration, 1);
     const eased = 1 - Math.pow(1-t, 3);
     el.textContent = fmt(from + (to-from)*eased);
@@ -1553,6 +1562,10 @@ $('wAddToSummary').addEventListener('click', (e)=>{
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
+    raw: snapshotFields(WALLS_SNAPSHOT_FIELDS),
+    rawSections: JSON.parse(JSON.stringify(wallSections)),
+    rawCustomElements: JSON.parse(JSON.stringify(wallCustomElements)),
+    rawEoItems: JSON.parse(JSON.stringify(wallEoItems)),
     inputs: {
       'Element Type': $('wElementType').value || 'N/A', 'Reference Detail': $('wRefDetail').value || 'n/a', 'Wall Area (m²)': $('wArea').value, 'Wall Thickness (mm)': $('wThickness').value,
       'Number of Panels': $('wNumPanels').value, 'Average Panel Height (m)': $('wAvgPanelHeight').value,
@@ -1575,6 +1588,40 @@ $('wDuplicateGroup').addEventListener('click', ()=>{
   $('wElementType').focus();
 });
 
+// ---------- Snapshot / restore a full group's raw field values, so an already-added
+// group in Project Summary can be reloaded into the form for correction instead of
+// having to be retyped from scratch. ----------
+const COL_SNAPSHOT_FIELDS = ['colGroupId','colRefDetail','colWidthMm','colDepthMm','colConcreteType',
+  'colGeomMode','colGroupVolume','colGroupQtyA','colHeightMm','colGroupQtyB','colCoverMm',
+  'colSteelMode','colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap',
+  'colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigQtyOther','colLigBar',
+  'colExtraClosedTieQty','colExtraClosedTiePerimeterMm','colDowelMode','colDowelBar','colDowelManualQty',
+  'colDowelLengthOverride','colLiftingQty','colAccessoriesQty','colUseCorrectedFormwork','colFormworkMultiplier',
+  'colWasteConcrete','colWasteSteel','colWasteDowel'];
+const WALLS_SNAPSHOT_FIELDS = ['wElementType','wRefDetail','wArea','wThickness','wNumPanels','wAvgPanelHeight',
+  'wConcreteType','wHasOpenings','wOpeningArea','wNumOpenings','wReoRate','wExtraSteelKg','wReoMode','wApplyLap',
+  'wDowelsEnabled','wDowelMethod','wDowelBar','wDowelSpacing','wDowelLengthOverride','wDowelManualWeight',
+  'wRipbox','wFerrules','wThreadbar','wCouplers','wLiftersPerPanel','wSpecialAccessoriesPerM2',
+  'wWasteConcrete','wWasteSteel','wWasteTrimmer','wWasteUBar','wWasteMesh','wWasteReoRate','wWasteRipbox'];
+
+function snapshotFields(ids){
+  const snap = {};
+  ids.forEach(id=>{ const el = $(id); if (el) snap[id] = el.value; });
+  return snap;
+}
+function restoreFields(snap){
+  Object.entries(snap || {}).forEach(([id, val])=>{
+    const el = $(id); if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input', {bubbles:true}));
+    el.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+}
+function goToPage(page){
+  const btn = document.querySelector(`.navbtn[data-page="${page}"]`);
+  if (btn) btn.click();
+}
+
 // ---------- Project Summary ----------
 let summary = JSON.parse(localStorage.getItem('precast-summary') || '[]');
 function buildSummary(){
@@ -1587,7 +1634,10 @@ function buildSummary(){
         <td>${g.type}</td>
         <td class="num">${fmt(g.pricePerM3)} <span style="color:var(--dim); font-size:11px;">${g.type==='Walls'?'/m²':'/m³'}</span></td>
         <td class="num">${fmt(g.total)}</td>
-        <td><button class="btn small ghost" data-role="delRow" data-id="${g.id}" aria-label="Remove ${g.groupId}">Remove</button></td>
+        <td style="white-space:nowrap;">
+          <button class="btn small ghost" data-role="editRow" data-id="${g.id}" aria-label="Edit ${g.groupId}" ${g.raw ? '' : 'disabled title="This group was added before Edit was available — remove and re-enter it instead."'}>Edit</button>
+          <button class="btn small ghost" data-role="delRow" data-id="${g.id}" aria-label="Remove ${g.groupId}">Remove</button>
+        </td>
       </tr>`).join('');
   }
   const total = summary.reduce((a,g)=>a+g.total,0);
@@ -1601,6 +1651,43 @@ $('summaryTable').addEventListener('input', (e)=>{
   localStorage.setItem('precast-summary', JSON.stringify(summary));
 });
 $('summaryTable').addEventListener('click', (e)=>{
+  if (e.target.dataset.role === 'editRow') {
+    const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !g.raw) return;
+    if (g.type === 'Columns') {
+      goToPage('columns');
+      restoreFields(g.raw);
+      colConsumablesList = g.rawConsumables ? JSON.parse(JSON.stringify(g.rawConsumables)) : [];
+      buildColConsumables();
+      // Restore which geometry sub-block is visible, matching the restored mode.
+      const isVolQty = $('colGeomMode').value === 'volumeQty';
+      $('colGeomVolumeQtyBlock').style.display = isVolQty ? '' : 'none';
+      $('colGeomDirectHeightBlock').style.display = isVolQty ? 'none' : '';
+      const isBarDetail = $('colSteelMode').value === 'barDetail';
+      $('colReoRateBlock').style.display = isBarDetail ? 'none' : '';
+      $('colBarDetailBlock').style.display = isBarDetail ? '' : 'none';
+      const showFormworkFields = $('colUseCorrectedFormwork').value === 'yes';
+      $('colFormworkMultiplierField').style.display = showFormworkFields ? '' : 'none';
+      $('colFormworkPreview').style.display = showFormworkFields ? '' : 'none';
+      updateDowelBlocks();
+      calcColumns();
+    } else {
+      goToPage('walls');
+      restoreFields(g.raw);
+      wallSections = g.rawSections ? JSON.parse(JSON.stringify(g.rawSections)) : wallSections;
+      wallCustomElements = g.rawCustomElements ? JSON.parse(JSON.stringify(g.rawCustomElements)) : [];
+      wallEoItems = g.rawEoItems ? JSON.parse(JSON.stringify(g.rawEoItems)) : [];
+      buildWallSections(); buildCustomElements(); buildEoItems();
+      const hasOpenings = $('wHasOpenings').value === 'yes';
+      $('wOpeningAreaField').style.display = hasOpenings ? '' : 'none';
+      $('wNumOpeningsField').style.display = hasOpenings ? '' : 'none';
+      updateDowelBlocks();
+      calcWalls();
+    }
+    summary = summary.filter(x=>x.id!==e.target.dataset.id);
+    localStorage.setItem('precast-summary', JSON.stringify(summary));
+    buildSummary();
+    return;
+  }
   if(e.target.dataset.role !== 'delRow') return;
   summary = summary.filter(x=>x.id!==e.target.dataset.id);
   localStorage.setItem('precast-summary', JSON.stringify(summary));
@@ -1617,6 +1704,8 @@ $('colAddToSummary').addEventListener('click', (e)=>{
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
       'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Labour':cost.labourCost },
+    raw: snapshotFields(COL_SNAPSHOT_FIELDS),
+    rawConsumables: JSON.parse(JSON.stringify(colConsumablesList)),
     inputs: {
       'Group ID': $('colGroupId').value || 'N/A', 'Reference Detail': $('colRefDetail').value || 'n/a', 'Width (mm)': $('colWidthMm').value, 'Depth (mm)': $('colDepthMm').value,
       'Geometry Mode': $('colGeomMode').value, 'Average Height Used (mm)': (($('colGeomMode').value==='volumeQty') ? $('colDerivedHeight').textContent : $('colHeightMm').value),
