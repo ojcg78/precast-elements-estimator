@@ -271,11 +271,12 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Geometry</span><span class="card-tag" id="wGeomTag">ELEMENT —</span></summary>
         <div class="grid4">
           <div class="field"><label>Element type / group name<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PT1" or "PCW-250" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="wElementType" placeholder="e.g. PCW-250"></div>
+          <div class="field"><label>Reference detail (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Which standard detail this matches on the drawing set — purely for your own traceability, saved in the exported audit but not used in any calculation.</span></span></label><input id="wRefDetail" placeholder="e.g. Detail 4/S502"></div>
           <div class="field"><label>Total wall area (m²)</label><input type="number" id="wArea" value="0"></div>
           <div class="field"><label>Wall thickness (mm)</label><input type="number" id="wThickness" value="0"></div>
-          <div class="field"><label>Number of panels</label><input type="number" id="wNumPanels" value="0"></div>
         </div>
         <div class="grid4" style="margin-top:12px;">
+          <div class="field"><label>Number of panels</label><input type="number" id="wNumPanels" value="0"></div>
           <div class="field"><label>Average panel height (m)</label><input type="number" step="0.01" id="wAvgPanelHeight" value="0"></div>
           <div class="field"><label>Concrete type</label><select id="wConcreteType"></select></div>
         </div>
@@ -384,7 +385,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <details style="margin-top:14px;"><summary class="sub-summary">Reinforcement breakdown</summary>
           <table class="costs" id="wReinfBreakdownTable" style="margin-top:8px;"></table>
         </details>
-        <div style="margin-top:14px;"><button class="btn" id="wAddToSummary">Add to Project Summary</button></div>
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <button class="btn" id="wAddToSummary">Add to Project Summary</button>
+          <button class="btn small ghost" id="wDuplicateGroup" title="Keep all these settings, clear the Element Type so you can price the next similar wall">Duplicate → next group</button>
+        </div>
       </details>
     </section>
 
@@ -399,8 +403,11 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <summary class="card-summary"><span class="cs-arrow"></span><span class="cs-title">Geometry</span><span class="card-tag" id="colGeomTag">GROUP —</span></summary>
         <div class="grid4">
           <div class="field"><label>Group ID<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">A short tag matching the drawing, e.g. "PC-01" — used to tell groups apart in Project Summary and the exported report.</span></span></label><input id="colGroupId" placeholder="e.g. PC-01"></div>
+          <div class="field"><label>Reference detail (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Which standard detail this matches on the drawing set, e.g. "Type C" from a tie schedule — purely for your own traceability, saved in the exported audit but not used in any calculation.</span></span></label><input id="colRefDetail" placeholder="e.g. Type C"></div>
           <div class="field"><label>Width (mm)</label><input type="number" id="colWidthMm" value="0"></div>
           <div class="field"><label>Depth (mm)</label><input type="number" id="colDepthMm" value="0"></div>
+        </div>
+        <div class="grid4" style="margin-top:12px;">
           <div class="field"><label>Concrete type</label><select id="colConcreteType"></select></div>
         </div>
         <div class="grid4" style="margin-top:12px;">
@@ -522,7 +529,10 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <div id="colCrossWarn"></div>
         <div id="colCostChart" class="cost-chart"></div>
         <table class="costs" id="colCostTable"></table>
-        <div style="margin-top:14px;"><button class="btn" id="colAddToSummary">Add to Project Summary</button></div>
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <button class="btn" id="colAddToSummary">Add to Project Summary</button>
+          <button class="btn small ghost" id="colDuplicateGroup" title="Keep all these settings, clear the Group ID so you can price the next similar column">Duplicate → next group</button>
+        </div>
       </details>
     </section>
 
@@ -1536,11 +1546,15 @@ wallsInputIds.forEach(id=> $(id).addEventListener('change', calcWalls));
 $('wAddToSummary').addEventListener('click', (e)=>{
   const result = calcWalls();
   const groupId = $('wElementType').value.trim() || `Walls group ${summary.length+1}`;
+  const isDuplicate = summary.some(g => g.type === 'Walls' && g.groupId === groupId);
+  if (isDuplicate && !confirm(`A Walls group called "${groupId}" is already in Project Summary. Add another one with the same name?`)) {
+    return;
+  }
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
     inputs: {
-      'Element Type': $('wElementType').value || 'N/A', 'Wall Area (m²)': $('wArea').value, 'Wall Thickness (mm)': $('wThickness').value,
+      'Element Type': $('wElementType').value || 'N/A', 'Reference Detail': $('wRefDetail').value || 'n/a', 'Wall Area (m²)': $('wArea').value, 'Wall Thickness (mm)': $('wThickness').value,
       'Number of Panels': $('wNumPanels').value, 'Average Panel Height (m)': $('wAvgPanelHeight').value,
       'Concrete Type': $('wConcreteType').value, 'Apply Lap Splice': $('wApplyLap').value,
       'Number of Sections': wallSections.length,
@@ -1554,6 +1568,11 @@ $('wAddToSummary').addEventListener('click', (e)=>{
   localStorage.setItem('precast-summary', JSON.stringify(summary));
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
+});
+$('wDuplicateGroup').addEventListener('click', ()=>{
+  $('wElementType').value = '';
+  $('wRefDetail').value = '';
+  $('wElementType').focus();
 });
 
 // ---------- Project Summary ----------
@@ -1590,12 +1609,16 @@ $('summaryTable').addEventListener('click', (e)=>{
 $('colAddToSummary').addEventListener('click', (e)=>{
   const cost = calcColumns();
   const groupId = $('colGroupId').value.trim() || `Columns group ${summary.length+1}`;
+  const isDuplicate = summary.some(g => g.type === 'Columns' && g.groupId === groupId);
+  if (isDuplicate && !confirm(`A Columns group called "${groupId}" is already in Project Summary. Add another one with the same name?`)) {
+    return;
+  }
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
       'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Labour':cost.labourCost },
     inputs: {
-      'Group ID': $('colGroupId').value || 'N/A', 'Width (mm)': $('colWidthMm').value, 'Depth (mm)': $('colDepthMm').value,
+      'Group ID': $('colGroupId').value || 'N/A', 'Reference Detail': $('colRefDetail').value || 'n/a', 'Width (mm)': $('colWidthMm').value, 'Depth (mm)': $('colDepthMm').value,
       'Geometry Mode': $('colGeomMode').value, 'Average Height Used (mm)': (($('colGeomMode').value==='volumeQty') ? $('colDerivedHeight').textContent : $('colHeightMm').value),
       'Total Group Volume (m³)': $('colGeomMode').value==='volumeQty' ? $('colGroupVolume').value : 'n/a',
       'Concrete Type': $('colConcreteType').value,
@@ -1624,6 +1647,11 @@ $('colAddToSummary').addEventListener('click', (e)=>{
   localStorage.setItem('precast-summary', JSON.stringify(summary));
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
+});
+$('colDuplicateGroup').addEventListener('click', ()=>{
+  $('colGroupId').value = '';
+  $('colRefDetail').value = '';
+  $('colGroupId').focus();
 });
 $('clearSummary').addEventListener('click', ()=>{ summary = []; localStorage.setItem('precast-summary','[]'); buildSummary(); });
 
@@ -1719,11 +1747,11 @@ function addRegistrationMarks(){
 
 // ---------- Cost composition: category grouping + donut chart ----------
 const CATEGORY_COLORS = {
-  'Concrete': '#37424D',
+  'Concrete': '#5B6670',
   'Reinforcing Steel': '#0A2647',
-  'Dowels & Connections': '#0E7C7B',
-  'Labour': '#B8341F',
-  'Extras & Accessories': '#D4A017',
+  'Dowels & Connections': '#3FA79A',
+  'Labour': '#96301C',
+  'Extras & Accessories': '#E8C24A',
 };
 function categorizeLine(label){
   const l = label.toLowerCase();
