@@ -1613,6 +1613,7 @@ $('wAddToSummary').addEventListener('click', (e)=>{
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
+    qtyPerUnit: result.qtyPerM2, unitRates: result.unitRates, qtyUnits: result.qtyUnits,
     raw: snapshotFields(WALLS_SNAPSHOT_FIELDS),
     rawSections: JSON.parse(JSON.stringify(wallSections)),
     rawCustomElements: JSON.parse(JSON.stringify(wallCustomElements)),
@@ -1758,6 +1759,7 @@ $('colAddToSummary').addEventListener('click', (e)=>{
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
       'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Labour':cost.labourCost },
+    qtyPerUnit: cost.qtyPerColumn, unitRates: cost.unitRates, qtyUnits: cost.qtyUnits,
     raw: snapshotFields(COL_SNAPSHOT_FIELDS),
     rawConsumables: JSON.parse(JSON.stringify(colConsumablesList)),
     inputs: {
@@ -1839,12 +1841,23 @@ function exportProjectExcel(){
   auditRows.push([]);
 
   summary.forEach(g=>{
-    reportRows.push([xSection(`${g.type} — ${g.groupId}`), xSection(''), xSection('')]);
+    reportRows.push([xSection(`${g.type} — ${g.groupId}`), xSection(''), xSection(''), xSection('')]);
     reportRows.push([`Price per ${g.type==='Walls'?'m²':'m³'}`, xMoney(g.pricePerM3)]);
     reportRows.push(['Total Group Cost', xMoney(g.total)]);
-    reportRows.push([xBold('Item'), xBold(`$ per ${g.type==='Walls'?'m²':'column/m³'}`)]);
-    Object.entries(g.costPerUnit).forEach(([k,v])=> reportRows.push([k, xMoney(v)]));
-    reportRows.push([xCell('Total Cost', STY_TOTAL), xMoney(g.pricePerM3, true)]);
+    const hasQty = !!(g.qtyPerUnit && g.unitRates);
+    if (hasQty) reportRows.push([xBold('Item'), xBold('Qty'), xBold('Rate'), xBold(`$ per ${g.type==='Walls'?'m²':'column/m³'}`)]);
+    else reportRows.push([xBold('Item'), xBold(`$ per ${g.type==='Walls'?'m²':'column/m³'}`)]);
+    Object.entries(g.costPerUnit).forEach(([k,v])=>{
+      if (hasQty && k in g.qtyPerUnit) {
+        const unit = (g.qtyUnits && g.qtyUnits[k]) || '';
+        reportRows.push([k, `${g.qtyPerUnit[k].toFixed(3)} ${unit}`.trim(), xMoney(g.unitRates[k]||0), xMoney(v)]);
+      } else if (hasQty) {
+        reportRows.push([k, '', '', xMoney(v)]);
+      } else {
+        reportRows.push([k, xMoney(v)]);
+      }
+    });
+    reportRows.push([xCell('Total Cost', STY_TOTAL), xCell('', STY_TOTAL), xCell('', STY_TOTAL), xMoney(g.pricePerM3, true)]);
     reportRows.push([]);
 
     auditRows.push([xSection(`${g.type} — ${g.groupId}`), xSection('')]);
