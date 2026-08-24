@@ -745,7 +745,42 @@ function calculateWallsCostPerM2(w, costDict) {
   Object.entries(w.additionalCustomElements || {}).forEach(([label, cost]) => { costPerM2[label] = cost; });
 
   const totalCostPerM2 = Object.values(costPerM2).reduce((a, b) => a + b, 0);
-  return { costPerM2, totalCostPerM2, totalCost: totalCostPerM2 * area };
+
+  // Physical quantity per m² (before $) and the $/unit rate used for each line — shown
+  // alongside the cost so an estimator can sanity-check "does 0.18 m³/m² x $265 = $47.70
+  // make sense", not just trust the final $ figure.
+  const qtyPerM2 = {
+    'Concrete': area > 0 ? (w.concreteVolume * (1 + w.wasteConcrete / 100)) / area : 0,
+    'Concrete Testing': area > 0 ? w.concreteVolume / area : 0,
+    'Steel Bars (H+V)': w.barsWeightM2 * (1 + w.wasteSteel / 100),
+    'Trimer Bar': w.trimerBarM2 * (1 + w.wasteTrimmer / 100),
+    'U-Bar': w.uBarM2 * (1 + w.wasteUBar / 100),
+    'Mesh': area > 0 ? (w.totalMeshWeight / area) * (1 + w.wasteMesh / 100) : 0,
+    'Reo Rate': (w.reoRate * (w.wallThickness / 1000)) * (1 + w.wasteReoRate / 100),
+    'Additional Reinforcement': area > 0 ? w.extraSteelKg / area : 0,
+    'Dowel Bars': area > 0 ? w.totalDowelWeight / area : 0,
+    'Ripbox': area > 0 ? (w.ripbox * (1 + w.wasteRipbox / 100)) / area : 0,
+    'Ferrules': area > 0 ? w.ferrules / area : 0,
+    'Threadbar': area > 0 ? w.threadbar / area : 0,
+    'Couplers': area > 0 ? w.couplers / area : 0,
+    'Lifting': area > 0 ? (w.liftersPerPanel * w.numberOfPanels) / area : 0,
+    'Special Accessories': w.specialAccessoriesPerM2,
+  };
+  const unitRates = {
+    'Concrete': g(w.concreteType), 'Concrete Testing': g('Concrete Testing'),
+    'Steel Bars (H+V)': g('Steel Bars'), 'Trimer Bar': g('Steel Bars'), 'U-Bar': g('Steel Bars'),
+    'Mesh': meshUnitPrice, 'Reo Rate': g('Steel Bars'), 'Additional Reinforcement': g('Steel Bars'),
+    'Dowel Bars': g('Steel Bars'), 'Ripbox': g('Ripbox'), 'Ferrules': g('Ferrule with chair'),
+    'Threadbar': g('Threadbar'), 'Couplers': g('Couplers'), 'Lifting': g('Lifting'),
+    'Special Accessories': g('Special Accessories'),
+  };
+  const qtyUnits = {
+    'Concrete': 'm³', 'Concrete Testing': 'm³', 'Steel Bars (H+V)': 'kg', 'Trimer Bar': 'kg', 'U-Bar': 'kg',
+    'Mesh': 'kg', 'Reo Rate': 'kg', 'Additional Reinforcement': 'kg', 'Dowel Bars': 'kg',
+    'Ripbox': 'm', 'Ferrules': 'ea', 'Threadbar': 'ea', 'Couplers': 'ea', 'Lifting': 'ea', 'Special Accessories': 'ea',
+  };
+
+  return { costPerM2, totalCostPerM2, totalCost: totalCostPerM2 * area, qtyPerM2, unitRates, qtyUnits };
 }
 
 // =======================================================================
@@ -867,9 +902,25 @@ function calculateColumnCost(c, costDict) {
   if (c.groupQty > 0) totalGroupCost = pricePerColumn * c.groupQty;
   else if (c.groupVolume > 0) totalGroupCost = pricePerM3 * c.groupVolume;
 
+  // Physical quantity per column (before $) and the $/unit rate used for each line —
+  // shown alongside the cost so an estimator can sanity-check the numbers, not just
+  // trust the final $ figure.
+  const qtyPerColumn = {
+    'Concrete': concreteQty, 'Concrete Testing': c.volumePerColumn, 'Steel': steelQty,
+    'Dowels': dowelQtyKg, 'Lifting': c.liftingQty, 'Special Accessories': c.accessoriesQty,
+  };
+  const unitRates = {
+    'Concrete': g(c.concreteType), 'Concrete Testing': g('Concrete Testing'), 'Steel': g('Steel Bars'),
+    'Dowels': g('Steel Bars'), 'Lifting': g('Lifting'), 'Special Accessories': g('Special Accessories'),
+  };
+  const qtyUnits = {
+    'Concrete': 'm³', 'Concrete Testing': 'm³', 'Steel': 'kg', 'Dowels': 'kg', 'Lifting': 'ea', 'Special Accessories': 'ea',
+  };
+
   return {
     concreteCost, testingCost, steelCost, dowelCost, liftingCost, accessoriesCost, consumablesCost,
-    labourCost, surfaceArea, materialsTotal, pricePerColumn, pricePerM3, totalGroupCost
+    labourCost, surfaceArea, materialsTotal, pricePerColumn, pricePerM3, totalGroupCost,
+    qtyPerColumn, unitRates, qtyUnits
   };
 }
 
@@ -1203,7 +1254,7 @@ function calcColumns(){
     ...consumables,
     'Labour': cost.labourCost,
   };
-  renderCostBreakdown('colCostChart', 'colCostTable', colItems, '$ per column', 'Price per column', cost.pricePerColumn);
+  renderCostBreakdown('colCostChart', 'colCostTable', colItems, '$ per column', 'Price per column', cost.pricePerColumn, cost.qtyPerColumn, cost.unitRates, cost.qtyUnits);
   return cost;
 }
 ['colWidthMm','colDepthMm','colHeightMm','colConcreteType','colGroupVolume','colGroupQtyA','colGroupQtyB','colCoverMm',
@@ -1533,7 +1584,7 @@ function calcWalls(){
   $('wStatusTag').textContent = '✓ READY'; $('wStatusTag').classList.add('ready');
   animateHeroValue('wPricePerM2', result.totalCostPerM2);
   $('wTotalCost').textContent = fmt(result.totalCost);
-  renderCostBreakdown('wCostChart', 'wCostTable', result.costPerM2, '$ per m²', 'Total cost per m²', result.totalCostPerM2);
+  renderCostBreakdown('wCostChart', 'wCostTable', result.costPerM2, '$ per m²', 'Total cost per m²', result.totalCostPerM2, result.qtyPerM2, result.unitRates, result.qtyUnits);
   const extraSteelKg = parseFloat($('wExtraSteelKg').value)||0;
   const reinfRows = [
     ['Reo Rate', reoRateKgTotal], ['Bars (H+V)', barsTotal], ['Mesh', meshWeightTotal],
@@ -2094,7 +2145,7 @@ function buildDonutSVG(segments, size){
 }
 // Renders a composition donut + legend into chartId, and the filtered (non-zero only)
 // itemized table into tableId. Returns nothing; both containers are fully replaced.
-function renderCostBreakdown(chartId, tableId, items, unitLabel, totalLabel, totalValue){
+function renderCostBreakdown(chartId, tableId, items, unitLabel, totalLabel, totalValue, qtyMap, rateMap, unitMap){
   const EPS = 0.005;
   const entries = Object.entries(items).filter(([,v]) => Math.abs(v) > EPS);
 
@@ -2121,11 +2172,23 @@ function renderCostBreakdown(chartId, tableId, items, unitLabel, totalLabel, tot
     chartEl.innerHTML = `${buildDonutSVG(segments)}<div class="cost-chart-legend">${legendRows}</div>`;
   }
 
-  const rows = entries.map(([label,v])=>`<tr><td>${label}</td><td class="num">${fmt(v)}</td></tr>`).join('');
-  $(tableId).innerHTML =
-    `<tr><th>Line</th><th style="text-align:right;">${unitLabel}</th></tr>` +
-    rows +
-    `<tr class="total"><td>${totalLabel}</td><td class="num">${fmt(totalValue)}</td></tr>`;
+  // Physical quantity + $/unit rate shown alongside the cost, when the caller has them —
+  // lets an estimator sanity-check "does 0.18 m³ x $265 = $47.70" instead of just trusting
+  // the final $ figure.
+  const hasQty = !!(qtyMap && rateMap);
+  const rows = entries.map(([label,v])=>{
+    if (!hasQty) return `<tr><td>${label}</td><td class="num">${fmt(v)}</td></tr>`;
+    if (!(label in qtyMap)) return `<tr><td>${label}</td><td class="num"></td><td class="num"></td><td class="num">${fmt(v)}</td></tr>`;
+    const qty = qtyMap[label]||0, rate = rateMap[label]||0, unit = (unitMap && unitMap[label]) || '';
+    return `<tr><td>${label}</td><td class="num">${qty.toLocaleString('en-AU',{maximumFractionDigits:3})} ${unit}</td><td class="num">${fmt(rate)}</td><td class="num">${fmt(v)}</td></tr>`;
+  }).join('');
+  const header = hasQty
+    ? `<tr><th>Line</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">${unitLabel}</th></tr>`
+    : `<tr><th>Line</th><th style="text-align:right;">${unitLabel}</th></tr>`;
+  const totalRow = hasQty
+    ? `<tr class="total"><td>${totalLabel}</td><td></td><td></td><td class="num">${fmt(totalValue)}</td></tr>`
+    : `<tr class="total"><td>${totalLabel}</td><td class="num">${fmt(totalValue)}</td></tr>`;
+  $(tableId).innerHTML = header + rows + totalRow;
 }
 
 // ---------- Required-field indicators ----------
