@@ -1729,8 +1729,15 @@ $('summaryTable').addEventListener('click', (e)=>{
       goToPage('walls');
       restoreFields(g.raw);
       wallSections = g.rawSections ? JSON.parse(JSON.stringify(g.rawSections)) : wallSections;
-      wallCustomElements = g.rawCustomElements ? JSON.parse(JSON.stringify(g.rawCustomElements)) : [];
-      wallEoItems = g.rawEoItems ? JSON.parse(JSON.stringify(g.rawEoItems)) : [];
+      // CORREGIDO: wireExtraList() capturó wallCustomElements/wallEoItems como parámetros
+      // en una única llamada al cargar la página — reasignar estas variables (=) rompe esa
+      // referencia, dejando los manejadores de Remove/edición operando sobre el array viejo
+      // en vez del restaurado. Mutar el array existente (length=0 + push) preserva la misma
+      // referencia en memoria, así los manejadores siguen viendo el contenido correcto.
+      wallCustomElements.length = 0;
+      if (g.rawCustomElements) wallCustomElements.push(...JSON.parse(JSON.stringify(g.rawCustomElements)));
+      wallEoItems.length = 0;
+      if (g.rawEoItems) wallEoItems.push(...JSON.parse(JSON.stringify(g.rawEoItems)));
       buildWallSections(); buildCustomElements(); buildEoItems();
       const hasOpenings = $('wHasOpenings').value === 'yes';
       $('wOpeningAreaField').style.display = hasOpenings ? '' : 'none';
