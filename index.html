@@ -1610,6 +1610,19 @@ $('wAddToSummary').addEventListener('click', (e)=>{
   if (isDuplicate && !confirm(`A Walls group called "${groupId}" is already in Project Summary. Add another one with the same name?`)) {
     return;
   }
+  // Human-readable summary of what's actually in each reinforcement section (bar types,
+  // spacing, mesh, trimer, U-bar) — without this, the audit trail only recorded a count
+  // of sections, never what type of steel was actually specified in them.
+  const sectionInputs = {};
+  wallSections.forEach((sec, i) => {
+    const parts = [];
+    if (sec.horizontalBar) parts.push(`H: ${sec.horizontalBar} @ ${sec.horizontalSpacing}mm (${sec.horizontalPlacement})`);
+    if (sec.verticalBar) parts.push(`V: ${sec.verticalBar} @ ${sec.verticalSpacing}mm (${sec.verticalPlacement})`);
+    if (sec.meshEnabled && sec.meshType) parts.push(`Mesh: ${sec.meshType} (${sec.meshPlacement})`);
+    if (sec.trimerType) parts.push(`Trimer: ${sec.trimerType} (${sec.trimerPlacement})`);
+    if (sec.uBarType) parts.push(`U-Bar: ${sec.uBarType} @ ${sec.uBarSpacing}mm (${sec.uBarLocation})`);
+    sectionInputs[`Section ${i+1}`] = parts.length ? parts.join(' | ') : 'n/a (empty)';
+  });
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
@@ -1623,6 +1636,7 @@ $('wAddToSummary').addEventListener('click', (e)=>{
       'Number of Panels': $('wNumPanels').value, 'Average Panel Height (m)': $('wAvgPanelHeight').value,
       'Concrete Type': $('wConcreteType').value, 'Apply Lap Splice': $('wApplyLap').value,
       'Number of Sections': wallSections.length,
+      ...sectionInputs,
       'Reo Rate (kg/m³)': $('wReoRate').value, 'Dowels': $('wDowelsEnabled').value,
       'Waste % — Concrete': $('wWasteConcrete').value, 'Waste % — Steel (H+V)': $('wWasteSteel').value,
       'Waste % — Trimer Bar': $('wWasteTrimmer').value, 'Waste % — Mesh': $('wWasteMesh').value,
