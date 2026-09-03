@@ -1779,7 +1779,7 @@ $('colAddToSummary').addEventListener('click', (e)=>{
   summary.push({
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
-      'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Labour':cost.labourCost },
+      'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Additional Consumables':cost.consumablesCost, 'Labour':cost.labourCost },
     qtyPerUnit: cost.qtyPerColumn, unitRates: cost.unitRates, qtyUnits: cost.qtyUnits,
     raw: snapshotFields(COL_SNAPSHOT_FIELDS),
     rawConsumables: JSON.parse(JSON.stringify(colConsumablesList)),
