@@ -169,6 +169,13 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
   <div class="tb-cell"><div class="k">Project</div><div class="v" id="topProjName">—</div></div>
   <div class="tb-cell"><div class="k">Code</div><div class="v" id="topProjCode">—</div></div>
   <div class="tb-spacer"></div>
+  <div class="tb-cell" id="signedInUserCell" style="display:none;">
+    <div class="k">Signed in as</div>
+    <div class="v" id="signedInUserName" style="font-size:11.5px;">—</div>
+  </div>
+  <div class="tb-cell" style="justify-content:center;">
+    <button class="btn small ghost" id="signOutBtn" style="display:none;">Sign out</button>
+  </div>
   <div class="tb-cell tb-total"><div class="k">Project Total</div><div class="v" id="topProjTotal">$0</div></div>
 </div>
 
@@ -189,6 +196,19 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <h2>Project</h2>
         <p>Cost estimates for precast wall panels and columns, from geometry and reinforcement through to a final $/m² or $/m³.</p>
       </div>
+      <div class="card">
+        <h2>Project / Tender</h2>
+        <p style="color:var(--dim); font-size:12.5px; margin:0 0 12px 0;">Projects/tenders and their element groups are shared in SQL Server — everyone signed in sees the same list.</p>
+        <div class="grid3">
+          <div class="field"><label>Select project / tender</label><select id="projectSelect"><option value="">— none yet —</option></select></div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn small" id="newProjectBtn">New Project</button>
+          <button class="btn small ghost" id="saveProjectBtn">Save Details</button>
+          <button class="btn small ghost" id="deleteProjectBtn">Delete Project</button>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Project details</h2>
         <div class="grid3">
@@ -244,7 +264,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
       <div class="page-head">
         <div class="eyebrow">Rates</div>
         <h2>Cost Settings</h2>
-        <p>Every rate that feeds the estimates below. Saved on this device (no server, no shared file to sync) — use export/import to carry it to another device or hand it to someone else.</p>
+        <p>Every rate that feeds the estimates below. Shared in SQL Server — anyone signed in sees and edits the same rates. Export/import still works as a local backup or bulk-edit shortcut.</p>
       </div>
       <div class="card">
         <div id="costLines"></div>
@@ -554,6 +574,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script>
 /**
  * Precast calculation engine — migrated 1:1 from app.py / columns_tab.py.
@@ -562,6 +583,86 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
  * "equivalent" reformulations — line-for-line parity is the whole point,
  * so results can be diffed against the Streamlit app for validation.
  */
+
+// ---------------------------------------------------------------------
+// Backend + Entra ID configuration — fill these in for your environment.
+// See backend-integration/README.md for what the API side needs to expose.
+// ---------------------------------------------------------------------
+const APP_CONFIG = {
+  apiBaseUrl: 'https://TODO-your-api-host/api', // TODO: base URL of your existing C# API
+  entraId: {
+    clientId: 'TODO-spa-app-registration-client-id', // TODO: the SPA's own Entra ID app registration
+    authority: 'https://login.microsoftonline.com/TODO-tenant-id', // TODO: your tenant id or domain
+    redirectUri: window.location.origin + window.location.pathname,
+    apiScope: 'api://TODO-api-app-registration-client-id/access_as_user', // TODO: scope exposed by your API's app registration
+  },
+};
+
+let msalInstance = null;
+let currentAccount = null;
+
+async function initAuth(){
+  msalInstance = new msal.PublicClientApplication({
+    auth: {
+      clientId: APP_CONFIG.entraId.clientId,
+      authority: APP_CONFIG.entraId.authority,
+      redirectUri: APP_CONFIG.entraId.redirectUri,
+    },
+    cache: { cacheLocation: 'localStorage' }, // only the MSAL token cache — app data itself now lives in SQL Server
+  });
+  await msalInstance.initialize();
+
+  const redirectResult = await msalInstance.handleRedirectPromise();
+  currentAccount = redirectResult?.account || msalInstance.getAllAccounts()[0] || null;
+
+  if (!currentAccount) {
+    await msalInstance.loginRedirect({ scopes: [APP_CONFIG.entraId.apiScope] });
+    return false; // browser is navigating to Entra ID login; nothing else to do on this pass
+  }
+  msalInstance.setActiveAccount(currentAccount);
+  return true;
+}
+
+async function getAccessToken(){
+  try {
+    const result = await msalInstance.acquireTokenSilent({ scopes: [APP_CONFIG.entraId.apiScope], account: currentAccount });
+    return result.accessToken;
+  } catch (e) {
+    await msalInstance.acquireTokenRedirect({ scopes: [APP_CONFIG.entraId.apiScope] });
+    throw e; // page is navigating away for interactive login; caller's request will not complete this pass
+  }
+}
+
+function renderSignedInUser(){
+  if (!currentAccount) return;
+  $('signedInUserCell').style.display = '';
+  $('signedInUserName').textContent = currentAccount.username || currentAccount.name || 'Signed in';
+  $('signOutBtn').style.display = '';
+}
+
+// ---------------------------------------------------------------------
+// Thin fetch wrapper: attaches the Entra ID access token to every call to
+// the shared API (cost settings, projects, element groups).
+// ---------------------------------------------------------------------
+async function apiFetch(path, options = {}){
+  const token = await getAccessToken();
+  const res = await fetch(`${APP_CONFIG.apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`API ${options.method || 'GET'} ${path} failed: ${res.status}`);
+  if (res.status === 204) return null;
+  return res.json();
+}
+const apiGet = (path) => apiFetch(path);
+const apiPost = (path, body) => apiFetch(path, { method:'POST', body: JSON.stringify(body) });
+const apiPut = (path, body) => apiFetch(path, { method:'PUT', body: JSON.stringify(body) });
+const apiPatch = (path, body) => apiFetch(path, { method:'PATCH', body: JSON.stringify(body) });
+const apiDelete = (path) => apiFetch(path, { method:'DELETE' });
 
 // ---------------------------------------------------------------------
 // Shared lookup tables (identical to app.py)
@@ -957,11 +1058,22 @@ const DEFAULT_COSTS = {
   'Ferrule with chair': 5, 'Threadbar': 13, 'Couplers': 11, 'Special Accessories': 5,
 };
 let costDict = {};
-function loadCosts(){
-  try{ costDict = JSON.parse(localStorage.getItem('precast-costs')) || {...DEFAULT_COSTS}; }
-  catch(e){ costDict = {...DEFAULT_COSTS}; }
+async function loadCosts(){
+  try{
+    const dto = await apiGet('/cost-settings');
+    costDict = (dto && dto.rates && Object.keys(dto.rates).length) ? dto.rates : {...DEFAULT_COSTS};
+  } catch(e){
+    console.error('Failed to load cost settings from the API, falling back to defaults.', e);
+    costDict = {...DEFAULT_COSTS};
+  }
 }
-function saveCosts(){ localStorage.setItem('precast-costs', JSON.stringify(costDict)); }
+async function saveCosts(){
+  try{ await apiPut('/cost-settings', { rates: costDict }); }
+  catch(e){
+    console.error('Failed to save cost settings to the API.', e);
+    alert('No se pudieron guardar las tarifas en el servidor. Verifica tu conexión e inténtalo de nuevo.');
+  }
+}
 // Groups cost lines into the same conceptual categories used elsewhere in the app
 // (cost composition chart), so a 27-line flat list becomes scannable sections
 // instead of an unordered wall of fields.
@@ -1603,7 +1715,8 @@ const wallsInputIds = ['wArea','wThickness','wNumPanels','wAvgPanelHeight','wCon
   'wOpeningArea','wNumOpenings'];
 wallsInputIds.forEach(id=> $(id).addEventListener('input', calcWalls));
 wallsInputIds.forEach(id=> $(id).addEventListener('change', calcWalls));
-$('wAddToSummary').addEventListener('click', (e)=>{
+$('wAddToSummary').addEventListener('click', async (e)=>{
+  if (!requireProject()) return;
   const result = calcWalls();
   const groupId = $('wElementType').value.trim() || `Walls group ${summary.length+1}`;
   const isDuplicate = summary.some(g => g.type === 'Walls' && g.groupId === groupId);
@@ -1623,7 +1736,7 @@ $('wAddToSummary').addEventListener('click', (e)=>{
     if (sec.uBarType) parts.push(`U-Bar: ${sec.uBarType} @ ${sec.uBarSpacing}mm (${sec.uBarLocation})`);
     sectionInputs[`Section ${i+1}`] = parts.length ? parts.join(' | ') : 'n/a (empty)';
   });
-  summary.push({
+  const newWallGroup = {
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
     qtyPerUnit: result.qtyPerM2, unitRates: result.unitRates, qtyUnits: result.qtyUnits,
@@ -1646,8 +1759,15 @@ $('wAddToSummary').addEventListener('click', (e)=>{
     rates: { 'Concrete': costDict[$('wConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
       'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
-  });
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  };
+  try {
+    const created = await apiPost(`/projects/${currentProjectId}/element-groups`, toApiPayload(newWallGroup));
+    summary.push(fromApiDto(created));
+  } catch(err) {
+    console.error('Failed to save Walls group to the API.', err);
+    alert('No se pudo guardar el grupo de Walls en el servidor.');
+    return;
+  }
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
 });
@@ -1691,8 +1811,112 @@ function goToPage(page){
   if (btn) btn.click();
 }
 
-// ---------- Project Summary ----------
-let summary = JSON.parse(localStorage.getItem('precast-summary') || '[]');
+// ---------- Project / Tender + Element Groups (shared, via API) ----------
+let currentProjectId = null;
+let projectsCache = [];
+
+// The client keeps working with the same flat group shape it always has
+// (id, groupId, type, pricePerM3, total, plus the raw/inputs/rates snapshot);
+// these two functions are the only place that shape is translated to/from
+// the API's { groupId, elementType, pricePerM3, total, data } wire shape.
+function toApiPayload(g){
+  const { id, groupId, type, pricePerM3, total, ...rest } = g;
+  return { groupId, elementType: type, pricePerM3, total, data: rest };
+}
+function fromApiDto(dto){
+  return { id: dto.id, groupId: dto.groupId, type: dto.elementType, pricePerM3: dto.pricePerM3, total: dto.total, ...dto.data };
+}
+function requireProject(){
+  if (!currentProjectId) { alert('Select or create a Project/Tender first (Project page) before adding an element group.'); return false; }
+  return true;
+}
+async function loadElementGroups(){
+  if (!currentProjectId) { summary = []; buildSummary(); return; }
+  try {
+    const dtos = await apiGet(`/projects/${currentProjectId}/element-groups`);
+    summary = dtos.map(fromApiDto);
+  } catch(e) {
+    console.error('Failed to load element groups from the API.', e);
+    summary = [];
+  }
+  buildSummary();
+}
+async function selectProject(id){
+  if (!id) { currentProjectId = null; $('projName').value=''; $('projCode').value=''; await loadElementGroups(); return; }
+  try {
+    const project = await apiGet(`/projects/${id}`);
+    currentProjectId = project.id;
+    $('projectSelect').value = project.id;
+    $('projName').value = project.name || '';
+    $('projCode').value = project.code || '';
+    $('projName').dispatchEvent(new Event('input', {bubbles:true}));
+    $('projCode').dispatchEvent(new Event('input', {bubbles:true}));
+    await loadElementGroups();
+  } catch(e) {
+    console.error('Failed to load project from the API.', e);
+    alert('No se pudo cargar el proyecto seleccionado.');
+  }
+}
+async function loadProjects(){
+  try {
+    projectsCache = await apiGet('/projects');
+  } catch(e) {
+    console.error('Failed to load projects from the API.', e);
+    projectsCache = [];
+  }
+  $('projectSelect').innerHTML = '<option value="">— none yet —</option>' +
+    projectsCache.map(p=>`<option value="${p.id}">${p.name}${p.code ? ' — '+p.code : ''}</option>`).join('');
+  if (projectsCache.length) {
+    await selectProject(projectsCache[0].id);
+  } else {
+    currentProjectId = null;
+    summary = [];
+    buildSummary();
+  }
+}
+$('projectSelect').addEventListener('change', (e)=> selectProject(e.target.value));
+$('newProjectBtn').addEventListener('click', async ()=>{
+  const name = prompt('Project / tender name:', $('projName').value || '');
+  if (name === null) return;
+  try {
+    const created = await apiPost('/projects', { name: name.trim() || 'New Project', code: $('projCode').value || null, clientName: null, status: null });
+    await loadProjects();
+    await selectProject(created.id);
+  } catch(e) {
+    console.error('Failed to create project.', e);
+    alert('No se pudo crear el proyecto en el servidor.');
+  }
+});
+$('saveProjectBtn').addEventListener('click', async ()=>{
+  const payload = { name: $('projName').value.trim() || 'Untitled project', code: $('projCode').value || null, clientName: null, status: null };
+  try {
+    if (!currentProjectId) {
+      const created = await apiPost('/projects', payload);
+      await loadProjects();
+      await selectProject(created.id);
+    } else {
+      await apiPut(`/projects/${currentProjectId}`, payload);
+      await loadProjects();
+    }
+  } catch(e) {
+    console.error('Failed to save project.', e);
+    alert('No se pudieron guardar los datos del proyecto en el servidor.');
+  }
+});
+$('deleteProjectBtn').addEventListener('click', async ()=>{
+  if (!currentProjectId) return;
+  if (!confirm('Delete this project and every element group in it? This cannot be undone.')) return;
+  try {
+    await apiDelete(`/projects/${currentProjectId}`);
+    currentProjectId = null;
+    await loadProjects();
+  } catch(e) {
+    console.error('Failed to delete project.', e);
+    alert('No se pudo eliminar el proyecto en el servidor.');
+  }
+});
+
+let summary = [];
 function buildSummary(){
   if (summary.length === 0) {
     $('summaryTable').innerHTML = `<tr><td style="color:var(--dim); padding:14px 8px; font-size:13.5px;">Nothing added yet — go to Walls or Columns, price a group, then click "Add to Project Summary".</td></tr>`;
@@ -1717,9 +1941,14 @@ $('summaryTable').addEventListener('input', (e)=>{
   if(e.target.dataset.role !== 'editGroupId') return;
   const g = summary.find(x=>x.id===e.target.dataset.id); if(!g) return;
   g.groupId = e.target.value;
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
 });
-$('summaryTable').addEventListener('click', (e)=>{
+$('summaryTable').addEventListener('change', async (e)=>{
+  if(e.target.dataset.role !== 'editGroupId') return;
+  const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !currentProjectId) return;
+  try { await apiPatch(`/projects/${currentProjectId}/element-groups/${g.id}/group-id`, g.groupId); }
+  catch(err) { console.error('Failed to rename group.', err); alert('No se pudo renombrar el grupo en el servidor.'); }
+});
+$('summaryTable').addEventListener('click', async (e)=>{
   if (e.target.dataset.role === 'editRow') {
     const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !g.raw) return;
     if (g.type === 'Columns') {
@@ -1760,23 +1989,31 @@ $('summaryTable').addEventListener('click', (e)=>{
       calcWalls();
     }
     summary = summary.filter(x=>x.id!==e.target.dataset.id);
-    localStorage.setItem('precast-summary', JSON.stringify(summary));
     buildSummary();
+    if (currentProjectId) {
+      try { await apiDelete(`/projects/${currentProjectId}/element-groups/${g.id}`); }
+      catch(err) { console.error('Failed to remove group after edit.', err); }
+    }
     return;
   }
   if(e.target.dataset.role !== 'delRow') return;
+  const g = summary.find(x=>x.id===e.target.dataset.id);
   summary = summary.filter(x=>x.id!==e.target.dataset.id);
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
   buildSummary();
+  if (g && currentProjectId) {
+    try { await apiDelete(`/projects/${currentProjectId}/element-groups/${g.id}`); }
+    catch(err) { console.error('Failed to delete group.', err); alert('No se pudo eliminar el elemento en el servidor.'); }
+  }
 });
-$('colAddToSummary').addEventListener('click', (e)=>{
+$('colAddToSummary').addEventListener('click', async (e)=>{
+  if (!requireProject()) return;
   const cost = calcColumns();
   const groupId = $('colGroupId').value.trim() || `Columns group ${summary.length+1}`;
   const isDuplicate = summary.some(g => g.type === 'Columns' && g.groupId === groupId);
   if (isDuplicate && !confirm(`A Columns group called "${groupId}" is already in Project Summary. Add another one with the same name?`)) {
     return;
   }
-  summary.push({
+  const newColumnGroup = {
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
       'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Additional Consumables':cost.consumablesCost, 'Labour':cost.labourCost },
@@ -1809,8 +2046,15 @@ $('colAddToSummary').addEventListener('click', (e)=>{
     rates: { 'Concrete': costDict[$('colConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
       'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
-  });
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  };
+  try {
+    const created = await apiPost(`/projects/${currentProjectId}/element-groups`, toApiPayload(newColumnGroup));
+    summary.push(fromApiDto(created));
+  } catch(err) {
+    console.error('Failed to save Columns group to the API.', err);
+    alert('No se pudo guardar el grupo de Columns en el servidor.');
+    return;
+  }
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
 });
@@ -1819,7 +2063,14 @@ $('colDuplicateGroup').addEventListener('click', ()=>{
   $('colRefDetail').value = '';
   $('colGroupId').focus();
 });
-$('clearSummary').addEventListener('click', ()=>{ summary = []; localStorage.setItem('precast-summary','[]'); buildSummary(); });
+$('clearSummary').addEventListener('click', async ()=>{
+  summary = [];
+  buildSummary();
+  if (currentProjectId) {
+    try { await apiDelete(`/projects/${currentProjectId}/element-groups`); }
+    catch(err) { console.error('Failed to clear element groups.', err); alert('No se pudo vaciar el resumen en el servidor.'); }
+  }
+});
 
 // ---------- Excel export (Report + Audit, via SheetJS) ----------
 // ---------- Excel cell-style helpers (matches the original xlsxwriter look: bold headers,
@@ -2254,12 +2505,25 @@ document.addEventListener('focusin', (e)=>{
 });
 
 // ---------- Init ----------
-loadCosts(); buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
-updateDowelBlocks();
-buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
-initRequiredFields();
-calcColumns(); calcWalls(); buildSummary();
-updateWGeomTag(); updateColGeomTag(); addRegistrationMarks();
+// Everything below needs a signed-in Entra ID user and the shared API, so it
+// runs after initAuth() resolves (initAuth() itself navigates away to the
+// Entra ID login page and returns false if nobody is signed in yet).
+(async function main(){
+  const authed = await initAuth();
+  if (!authed) return;
+  renderSignedInUser();
+  $('signOutBtn').addEventListener('click', ()=> msalInstance.logoutRedirect());
+
+  await loadCosts();
+  buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
+  updateDowelBlocks();
+  buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
+  initRequiredFields();
+  calcColumns(); calcWalls(); buildSummary();
+  updateWGeomTag(); updateColGeomTag(); addRegistrationMarks();
+
+  await loadProjects();
+})();
 </script>
 </body>
 </html>
