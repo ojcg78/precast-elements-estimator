@@ -1,63 +1,63 @@
-# Integración con backend existente (SQL Server + Entra ID)
+# Integrating with your existing backend (SQL Server + Entra ID)
 
-Estos archivos **no son un proyecto independiente**: son piezas para copiar dentro de tu API .NET existente (que ya usa Entity Framework Core y ya valida Entra ID). No sé el nombre real de tu `DbContext`, tu namespace, ni el nombre de tus proyectos .csproj, así que cada archivo trae comentarios `// TODO:` donde tienes que ajustar algo a tu proyecto real.
+These files are **not a standalone project** — they're pieces to copy into your existing .NET API (which already uses Entity Framework Core and already validates Entra ID). I don't know the real name of your `DbContext`, your namespace, or your `.csproj` project names, so every file carries `// TODO:` comments wherever something needs adjusting to match your real project.
 
-## Qué resuelve
+## What this solves
 
-Hoy `index.html` guarda todo en `localStorage` del navegador:
-- Tarifas de costos (`precast-costs`)
-- Resumen de proyecto / elementos agregados (`precast-summary`)
+Today `index.html` stores everything in the browser's `localStorage`:
+- Cost rates (`precast-costs`)
+- Project summary / added elements (`precast-summary`)
 
-Con esto, esos datos pasan a vivir en SQL Server, compartidos entre todos los usuarios que entren con su cuenta de Entra ID.
+With this, that data moves into SQL Server, shared across everyone who signs in with their Entra ID account.
 
-## Pasos de integración
+## Integration steps
 
-1. **Base de datos**: ejecuta `schema.sql` contra tu base SQL Server. Crea las tablas `CostSetting`, `Project`, `ElementGroup` y deja sembradas (`seed`) las tarifas actuales de `DEFAULT_COSTS`. Es seguro volver a ejecutarlo (usa `IF NOT EXISTS` / `MERGE`).
+1. **Database**: run `schema.sql` against your SQL Server database. It creates the `CostSetting`, `Project`, and `ElementGroup` tables and seeds the current `DEFAULT_COSTS` rates. Safe to re-run (uses `IF NOT EXISTS` / `MERGE`).
 
-2. **Modelos** (`Models/CostSetting.cs`, `Models/Project.cs`, `Models/ElementGroup.cs`): cópialos a la carpeta de modelos/entidades de tu proyecto. Ajusta el `namespace` al tuyo.
+2. **Models** (`Models/CostSetting.cs`, `Models/Project.cs`, `Models/ElementGroup.cs`): copy these into your project's models/entities folder. Adjust the `namespace` to match yours.
 
-3. **DbContext** (`DbContextAdditions.cs`): **no es un archivo para pegar tal cual** — muestra qué añadir a tu `DbContext` real:
-   - Los tres `DbSet<>` (`CostSettings`, `Projects`, `ElementGroups`).
-   - La configuración de `OnModelCreating` para las tres tablas (tipos `decimal`, longitudes de `NVARCHAR`, la relación `Project 1—N ElementGroup` con `OnDelete(Cascade)`).
+3. **DbContext** (`DbContextAdditions.cs`): **not a file to paste as-is** — it shows what to add to your real `DbContext`:
+   - The three `DbSet<>` properties (`CostSettings`, `Projects`, `ElementGroups`).
+   - The `OnModelCreating` configuration for the three tables (`decimal` types, `NVARCHAR` lengths, the `Project` 1—N `ElementGroup` relationship with `OnDelete(Cascade)`).
 
-   Después de copiarlo, genera y aplica una migración de EF Core:
+   After copying it, generate and apply an EF Core migration:
    ```
    dotnet ef migrations add AddPrecastEstimatorSharedTables
    dotnet ef database update
    ```
-   (Si prefieres administrar el esquema solo con `schema.sql` y no con migraciones de EF, usa `modelBuilder.Entity<>().ToTable(t => t.ExcludeFromMigrations())` en las tres entidades para que EF no intente recrear tablas que ya creaste a mano.)
+   (If you'd rather manage the schema only via `schema.sql` and not EF migrations, use `modelBuilder.Entity<>().ToTable(t => t.ExcludeFromMigrations())` on the three entities so EF doesn't try to recreate tables you already created by hand.)
 
-4. **DTOs** (`Dtos/CostSettingDto.cs`, `Dtos/ProjectDto.cs`, `Dtos/ElementGroupDto.cs`): cópialos igual, ajustando namespace. `ElementGroupDto.Data`/`CreateOrUpdateElementGroupDto.Data` son `JsonElement` (no `string`) para que el JSON viaje sin escapar en el body de la request/response.
+4. **DTOs** (`Dtos/CostSettingDto.cs`, `Dtos/ProjectDto.cs`, `Dtos/ElementGroupDto.cs`): copy these too, adjusting the namespace. `ElementGroupDto.Data`/`CreateOrUpdateElementGroupDto.Data` are `JsonElement` (not `string`) so the JSON travels unescaped in the request/response body.
 
-5. **Controllers** (`Controllers/CostSettingsController.cs`, `Controllers/ProjectsController.cs`, `Controllers/ElementGroupsController.cs`): cópialos a tu carpeta de controllers.
-   - Reemplaza `YourExistingDbContext` por el nombre real de tu `DbContext` en los tres archivos (inyectado por constructor, como ya harán tus otros controllers).
-   - Reemplaza `User.Identity?.Name` por el claim que uses hoy para identificar al usuario de Entra ID que llama a la API (por ejemplo `User.FindFirstValue("preferred_username")` o `User.FindFirstValue(ClaimTypes.Email)`), igual que ya haces en tus controllers existentes.
-   - Revisa que `[Authorize]` (sin parámetros) sea correcto para tu configuración. Si usas una policy con nombre específico para tu esquema de Entra ID (por ejemplo `[Authorize(Policy = "RequireAuthenticatedUser")]`), cámbialo ahí.
+5. **Controllers** (`Controllers/CostSettingsController.cs`, `Controllers/ProjectsController.cs`, `Controllers/ElementGroupsController.cs`): copy these into your controllers folder.
+   - Replace `YourExistingDbContext` with the real name of your `DbContext` in all three files (constructor-injected, same as your other controllers).
+   - Replace `User.Identity?.Name` with whichever claim you currently use to identify the signed-in Entra ID user calling the API (for example `User.FindFirstValue("preferred_username")` or `User.FindFirstValue(ClaimTypes.Email)`), matching what your existing controllers already do.
+   - Check that plain `[Authorize]` is correct for your setup. If you use a named policy for your Entra ID scheme (e.g. `[Authorize(Policy = "RequireAuthenticatedUser")]`), change it there.
 
-6. **Nada que cambiar en `Program.cs`/`Startup.cs`** para autenticación — ya tienes Entra ID configurado. Si tu configuración de CORS restringe orígenes, asegúrate de permitir el origen donde sirves `index.html`.
+6. **Nothing to change in `Program.cs`/`Startup.cs`** for authentication — you already have Entra ID configured. If your CORS configuration restricts origins, make sure it allows the origin `index.html` is served from.
 
-## Endpoints resultantes
+## Resulting endpoints
 
-| Método | Ruta | Uso |
+| Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/cost-settings` | Trae todas las tarifas (`{ rates: { "Steel Bars": 3.2, ... } }`) |
-| PUT | `/api/cost-settings` | Reemplaza/actualiza el set completo de tarifas |
-| GET | `/api/projects` | Lista de proyectos/tenders |
-| POST | `/api/projects` | Crea un proyecto/tender |
-| GET/PUT/DELETE | `/api/projects/{id}` | Leer/editar/borrar un proyecto |
-| GET | `/api/projects/{projectId}/element-groups` | Elementos (Walls/Columns) agregados a ese proyecto |
-| POST | `/api/projects/{projectId}/element-groups` | Agrega un elemento al resumen |
-| PUT | `/api/projects/{projectId}/element-groups/{id}` | Edita un elemento existente |
-| PATCH | `/api/projects/{projectId}/element-groups/{id}/group-id` | Solo renombra el "Group" (edición inline en la tabla resumen) |
-| DELETE | `/api/projects/{projectId}/element-groups/{id}` | Elimina un elemento |
-| DELETE | `/api/projects/{projectId}/element-groups` | Vacía el resumen completo del proyecto ("Clear Summary") |
+| GET | `/api/cost-settings` | Fetches all rates (`{ rates: { "Steel Bars": 3.2, ... } }`) |
+| PUT | `/api/cost-settings` | Replaces/updates the full rate set |
+| GET | `/api/projects` | List of projects/tenders |
+| POST | `/api/projects` | Creates a project/tender |
+| GET/PUT/DELETE | `/api/projects/{id}` | Read/edit/delete a project |
+| GET | `/api/projects/{projectId}/element-groups` | Elements (Walls/Columns) added to that project |
+| POST | `/api/projects/{projectId}/element-groups` | Adds an element to the summary |
+| PUT | `/api/projects/{projectId}/element-groups/{id}` | Edits an existing element |
+| PATCH | `/api/projects/{projectId}/element-groups/{id}/group-id` | Renames only the "Group" (inline edit in the summary table) |
+| DELETE | `/api/projects/{projectId}/element-groups/{id}` | Deletes an element |
+| DELETE | `/api/projects/{projectId}/element-groups` | Clears the whole project summary ("Clear Summary") |
 
-Todo protegido con `[Authorize]` — un token de Entra ID válido es obligatorio para cualquiera de estos.
+All protected with `[Authorize]` — a valid Entra ID token is required for any of these.
 
-## Concurrencia
+## Concurrency
 
-Se implementó "último guardado gana" (sin optimistic concurrency): si dos personas guardan casi al mismo tiempo, el último `PUT`/`PATCH` sobreescribe al anterior sin aviso. Si más adelante quieres detectar conflictos, se puede agregar una columna `ROWVERSION` a `ElementGroup`/`CostSetting` y validar `If-Match` en los `PUT`.
+This implements "last write wins" (no optimistic concurrency): if two people save at nearly the same time, the last `PUT`/`PATCH` overwrites the previous one without warning. If you later want to detect conflicts, a `ROWVERSION` column could be added to `ElementGroup`/`CostSetting` and checked via `If-Match` on the `PUT`s.
 
 ## Frontend (`index.html`)
 
-El archivo `index.html` en la raíz del repo ya fue adaptado para llamar a estos endpoints en vez de `localStorage` (ver bloque `APP_CONFIG` cerca del inicio del `<script>` principal — ahí debes completar tu `apiBaseUrl`, `clientId` y `authority`/`tenantId` de Entra ID, y el `apiScope` que tu API expone). Revisa esa sección antes de desplegar.
+`index.html` at the repo root has already been adapted to call these endpoints instead of `localStorage` (see the `APP_CONFIG` block near the top of the main `<script>` — that's where you fill in your `apiBaseUrl`, Entra ID `clientId`, `authority`/tenant ID, and the `apiScope` your API exposes). Check that section before deploying.

@@ -708,11 +708,11 @@ function calculateRebarWeight(area, spacingH, spacingV, barTypeH, barTypeV, plac
   spacingV = spacingV ? spacingV / 1000 : 0;
   let totalWeightM2 = 0;
 
-  // CORREGIDO: cada barra debe usar SU PROPIO espaciamiento (el que el usuario cargó
-  // junto a esa barra en la UI: "Horizontal bar" + "Horizontal spacing" van juntos),
-  // no el de la otra dirección. Antes estaban cruzados: las barras horizontales usaban
-  // el espaciamiento vertical y viceversa, lo cual daba un peso incorrecto salvo que
-  // ambos espaciamientos coincidieran por casualidad.
+  // FIXED: each bar must use ITS OWN spacing (the one the user entered
+  // alongside that bar in the UI: "Horizontal bar" + "Horizontal spacing" go
+  // together), not the other direction's. They used to be crossed: horizontal
+  // bars used the vertical spacing and vice versa, giving an incorrect weight
+  // unless both spacings happened to match by coincidence.
   if (barTypeH) {
     const diameterH = barDiameterLookup[barTypeH];
     const lapFactorH = applyLap ? 1 + (40 * diameterH / 6000) : 1;
@@ -768,7 +768,7 @@ function calculateUBarWeight(area, numPanels, wallThickness, uBarType, uBarSpaci
     return { weightM2: 0, weightTotal: 0 };
   }
   const diameter = barDiameterLookup[uBarType] || 0;
-  const legLength = uBarLegLength > 0 ? uBarLegLength : (40 * diameter) / 1000; // automático si no se ingresó manual
+  const legLength = uBarLegLength > 0 ? uBarLegLength : (40 * diameter) / 1000; // automatic if no manual value was entered
   const avgSpan = uBarLocation === 'Side' ? avgPanelHeight : (numPanels > 0 ? (area / numPanels) / avgPanelHeight : 0);
   let barsPerPanel = avgSpan / (uBarSpacing / 1000);
   barsPerPanel = Math.floor(barsPerPanel) + (barsPerPanel % 1 > 0 ? 1 : 0);
@@ -780,7 +780,7 @@ function calculateUBarWeight(area, numPanels, wallThickness, uBarType, uBarSpaci
   return { weightM2: area > 0 ? totalWeight / area : 0, weightTotal: totalWeight };
 }
 
-// Una "sección" de refuerzo (bars+mesh+trimer+u-bar) — Walls admite varias, sumadas.
+// A reinforcement "section" (bars+mesh+trimer+u-bar) — Walls allows several, summed together.
 function calculateSectionWeight(section, area, wallThickness, applyLap, numPanels, openingArea, numOpenings, avgPanelHeight, costDict) {
   const bars = calculateRebarWeight(area, section.horizontalSpacing, section.verticalSpacing,
     section.horizontalBar, section.verticalBar, section.horizontalPlacement, section.verticalPlacement, applyLap);
@@ -911,8 +911,8 @@ function calculateColumnReinforcement(c) {
   const longWeight2 = longLength2 * (steelWeightLookup[c.longBar2] || 0);
 
   const tieSpacingM = c.tieSpacingMm / 1000;
-  // CORREGIDO: +1 para reflejar un tie en cada extremo de la columna (base
-  // y coronación), no solo uno por intervalo — convención estándar de detallado.
+  // FIXED: +1 to reflect a tie at each end of the column (base
+  // and top), not just one per interval — standard detailing convention.
   const tieCount = (tieSpacingM > 0 && c.avgHeight > 0) ? Math.ceil(c.avgHeight / tieSpacingM) + 1 : 0;
   const tiePerimeter = c.tiePerimeterOverrideM > 0
     ? c.tiePerimeterOverrideM
@@ -920,9 +920,9 @@ function calculateColumnReinforcement(c) {
   const tieLength = tiePerimeter * tieCount;
   const tieWeight = tieLength * (steelWeightLookup[c.tieBar] || 0);
 
-  // CORREGIDO: los ligs atraviesan la dimensión MENOR de la sección (conectan las
-  // barras de las caras más largas cruzando el lado corto) — antes usaba siempre
-  // "width", lo cual daba un largo/peso incorrecto si depth < width.
+  // FIXED: ligs cross the SHORTER dimension of the section (connecting the
+  // bars on the longer faces across the short side) — it used to always use
+  // "width", which gave an incorrect length/weight when depth < width.
   const ligLength = ((Math.min(c.width, c.depth) - 2 * c.cover) + hookAllowanceM(c.ligBar)) * (tieCount * c.ligQty);
   // Ligs crossing the LONGER face instead (uncommon, but real — e.g. Type C style
   // details where most crossties go one way and one goes the other).
@@ -1071,7 +1071,7 @@ async function saveCosts(){
   try{ await apiPut('/cost-settings', { rates: costDict }); }
   catch(e){
     console.error('Failed to save cost settings to the API.', e);
-    alert('No se pudieron guardar las tarifas en el servidor. Verifica tu conexión e inténtalo de nuevo.');
+    alert('Could not save the cost settings to the server. Check your connection and try again.');
   }
 }
 // Groups cost lines into the same conceptual categories used elsewhere in the app
@@ -1204,18 +1204,19 @@ function animateHeroValue(id, toNumber){
   const to = toNumber || 0;
   const changed = Math.abs(to-from) > 0.005 && el.textContent.trim() !== '' && el.textContent !== '—';
   if (changed) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
-  // CORREGIDO: cada llamada invalida cualquier animación anterior en curso para este mismo
-  // elemento. Sin esto, muchas llamadas rápidas seguidas (ej. al restaurar un grupo completo
-  // vía Edit/Duplicate, que dispara ~35 recálculos en sucesión) podían encimar varios loops
-  // de requestAnimationFrame escribiendo al mismo textContent, dejando un valor a mitad de
-  // camino de una animación vieja en vez del valor final correcto — un número "fantasma"
-  // matemáticamente inconsistente con el resto de la pantalla.
+  // FIXED: each call invalidates any animation already running for this same
+  // element. Without this, many rapid calls in a row (e.g. restoring a whole
+  // group via Edit/Duplicate, which triggers ~35 recalculations in
+  // succession) could stack several requestAnimationFrame loops writing to
+  // the same textContent, leaving a value stuck partway through an old
+  // animation instead of the correct final value — a "ghost" number
+  // mathematically inconsistent with the rest of the screen.
   const myGen = (parseInt(el.dataset.animGen || '0', 10) + 1);
   el.dataset.animGen = String(myGen);
   if (Math.abs(to-from) < 0.005) { el.textContent = fmt(to); return; }
   const duration = 280, start = performance.now();
   function tick(now){
-    if (el.dataset.animGen !== String(myGen)) return; // una animación más nueva tomó el control
+    if (el.dataset.animGen !== String(myGen)) return; // a newer animation took control
     const t = Math.min((now-start)/duration, 1);
     const eased = 1 - Math.pow(1-t, 3);
     el.textContent = fmt(from + (to-from)*eased);
@@ -1765,7 +1766,7 @@ $('wAddToSummary').addEventListener('click', async (e)=>{
     summary.push(fromApiDto(created));
   } catch(err) {
     console.error('Failed to save Walls group to the API.', err);
-    alert('No se pudo guardar el grupo de Walls en el servidor.');
+    alert('Could not save the Walls group to the server.');
     return;
   }
   buildSummary();
@@ -1854,7 +1855,7 @@ async function selectProject(id){
     await loadElementGroups();
   } catch(e) {
     console.error('Failed to load project from the API.', e);
-    alert('No se pudo cargar el proyecto seleccionado.');
+    alert('Could not load the selected project.');
   }
 }
 async function loadProjects(){
@@ -1884,7 +1885,7 @@ $('newProjectBtn').addEventListener('click', async ()=>{
     await selectProject(created.id);
   } catch(e) {
     console.error('Failed to create project.', e);
-    alert('No se pudo crear el proyecto en el servidor.');
+    alert('Could not create the project on the server.');
   }
 });
 $('saveProjectBtn').addEventListener('click', async ()=>{
@@ -1900,7 +1901,7 @@ $('saveProjectBtn').addEventListener('click', async ()=>{
     }
   } catch(e) {
     console.error('Failed to save project.', e);
-    alert('No se pudieron guardar los datos del proyecto en el servidor.');
+    alert('Could not save the project details to the server.');
   }
 });
 $('deleteProjectBtn').addEventListener('click', async ()=>{
@@ -1912,7 +1913,7 @@ $('deleteProjectBtn').addEventListener('click', async ()=>{
     await loadProjects();
   } catch(e) {
     console.error('Failed to delete project.', e);
-    alert('No se pudo eliminar el proyecto en el servidor.');
+    alert('Could not delete the project on the server.');
   }
 });
 
@@ -1946,7 +1947,7 @@ $('summaryTable').addEventListener('change', async (e)=>{
   if(e.target.dataset.role !== 'editGroupId') return;
   const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !currentProjectId) return;
   try { await apiPatch(`/projects/${currentProjectId}/element-groups/${g.id}/group-id`, g.groupId); }
-  catch(err) { console.error('Failed to rename group.', err); alert('No se pudo renombrar el grupo en el servidor.'); }
+  catch(err) { console.error('Failed to rename group.', err); alert('Could not rename the group on the server.'); }
 });
 $('summaryTable').addEventListener('click', async (e)=>{
   if (e.target.dataset.role === 'editRow') {
@@ -1972,11 +1973,12 @@ $('summaryTable').addEventListener('click', async (e)=>{
       goToPage('walls');
       restoreFields(g.raw);
       wallSections = g.rawSections ? JSON.parse(JSON.stringify(g.rawSections)) : wallSections;
-      // CORREGIDO: wireExtraList() capturó wallCustomElements/wallEoItems como parámetros
-      // en una única llamada al cargar la página — reasignar estas variables (=) rompe esa
-      // referencia, dejando los manejadores de Remove/edición operando sobre el array viejo
-      // en vez del restaurado. Mutar el array existente (length=0 + push) preserva la misma
-      // referencia en memoria, así los manejadores siguen viendo el contenido correcto.
+      // FIXED: wireExtraList() captured wallCustomElements/wallEoItems as
+      // parameters in a single call at page load — reassigning these
+      // variables (=) breaks that reference, leaving the Remove/edit
+      // handlers operating on the old array instead of the restored one.
+      // Mutating the existing array (length=0 + push) keeps the same
+      // in-memory reference, so the handlers keep seeing the right content.
       wallCustomElements.length = 0;
       if (g.rawCustomElements) wallCustomElements.push(...JSON.parse(JSON.stringify(g.rawCustomElements)));
       wallEoItems.length = 0;
@@ -2002,7 +2004,7 @@ $('summaryTable').addEventListener('click', async (e)=>{
   buildSummary();
   if (g && currentProjectId) {
     try { await apiDelete(`/projects/${currentProjectId}/element-groups/${g.id}`); }
-    catch(err) { console.error('Failed to delete group.', err); alert('No se pudo eliminar el elemento en el servidor.'); }
+    catch(err) { console.error('Failed to delete group.', err); alert('Could not delete the element on the server.'); }
   }
 });
 $('colAddToSummary').addEventListener('click', async (e)=>{
@@ -2052,7 +2054,7 @@ $('colAddToSummary').addEventListener('click', async (e)=>{
     summary.push(fromApiDto(created));
   } catch(err) {
     console.error('Failed to save Columns group to the API.', err);
-    alert('No se pudo guardar el grupo de Columns en el servidor.');
+    alert('Could not save the Columns group to the server.');
     return;
   }
   buildSummary();
@@ -2068,7 +2070,7 @@ $('clearSummary').addEventListener('click', async ()=>{
   buildSummary();
   if (currentProjectId) {
     try { await apiDelete(`/projects/${currentProjectId}/element-groups`); }
-    catch(err) { console.error('Failed to clear element groups.', err); alert('No se pudo vaciar el resumen en el servidor.'); }
+    catch(err) { console.error('Failed to clear element groups.', err); alert('Could not clear the summary on the server.'); }
   }
 });
 
