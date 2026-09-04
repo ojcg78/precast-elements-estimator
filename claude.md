@@ -1,1 +1,1 @@
-Use SOLID principals when designing code
+Use SOLID principles when designing code
