@@ -589,12 +589,21 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
 // See backend-integration/README.md for what the API side needs to expose.
 // ---------------------------------------------------------------------
 const APP_CONFIG = {
-  apiBaseUrl: 'https://TODO-your-api-host/api', // TODO: base URL of your existing C# API
+  // TODO: confirm the exact path once the new controllers are wired into the
+  // existing API — it already serves under /api/v2/, so our routes
+  // (api/cost-settings, api/projects, ...) may need a version prefix added
+  // to match (e.g. api/v2/cost-settings) instead of duplicating "api".
+  apiBaseUrl: 'https://app.pfwork.com.au/api/v2',
   entraId: {
-    clientId: 'TODO-spa-app-registration-client-id', // TODO: the SPA's own Entra ID app registration
-    authority: 'https://login.microsoftonline.com/TODO-tenant-id', // TODO: your tenant id or domain
+    // "Precast Estimating Application" app registration (single-tenant — "My organization only").
+    clientId: '5ee24dd4-b58e-41d9-8e78-099f656dc6c6',
+    authority: 'https://login.microsoftonline.com/ee8a20ad-1e0b-4a5c-a5fa-3cc6a490db89',
     redirectUri: window.location.origin + window.location.pathname,
-    apiScope: 'api://TODO-api-app-registration-client-id/access_as_user', // TODO: scope exposed by your API's app registration
+    // TODO: this app registration doesn't have an Application ID URI / exposed
+    // scope yet (Azure Portal → this app → "Expose an API" → set Application
+    // ID URI, then "Add a scope", e.g. access_as_user). Update this once that
+    // exists — it will look like api://5ee24dd4-b58e-41d9-8e78-099f656dc6c6/<scope-name>.
+    apiScope: 'api://5ee24dd4-b58e-41d9-8e78-099f656dc6c6/access_as_user',
   },
 };
 
