@@ -9,7 +9,7 @@ using PrecastEstimator.Api.Models;
 namespace PrecastEstimator.Api.Controllers;
 
 [ApiController]
-[Route("api/projects")]
+[Route("api/v2/projects")]
 [Authorize] // TODO: confirm this matches how your other controllers require an Entra ID token.
 public class ProjectsController : ControllerBase
 {
