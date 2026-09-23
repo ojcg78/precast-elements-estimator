@@ -4,7 +4,7 @@ These files are **not a standalone project** — they're pieces to copy into you
 
 ## What this solves
 
-Today `index.html` stores everything in the browser's `localStorage`:
+In `'local'` mode `index.html` stores everything in the browser's `localStorage`:
 - Cost rates (`precast-costs`)
 - Project summary / added elements (`precast-summary`)
 
@@ -40,17 +40,17 @@ With this, that data moves into SQL Server, shared across everyone who signs in 
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/cost-settings` | Fetches all rates (`{ rates: { "Steel Bars": 3.2, ... } }`) |
-| PUT | `/api/cost-settings` | Replaces/updates the full rate set |
-| GET | `/api/projects` | List of projects/tenders |
-| POST | `/api/projects` | Creates a project/tender |
-| GET/PUT/DELETE | `/api/projects/{id}` | Read/edit/delete a project |
-| GET | `/api/projects/{projectId}/element-groups` | Elements (Walls/Columns) added to that project |
-| POST | `/api/projects/{projectId}/element-groups` | Adds an element to the summary |
-| PUT | `/api/projects/{projectId}/element-groups/{id}` | Edits an existing element |
-| PATCH | `/api/projects/{projectId}/element-groups/{id}/group-id` | Renames only the "Group" (inline edit in the summary table) |
-| DELETE | `/api/projects/{projectId}/element-groups/{id}` | Deletes an element |
-| DELETE | `/api/projects/{projectId}/element-groups` | Clears the whole project summary ("Clear Summary") |
+| GET | `/api/v2/cost-settings` | Fetches all rates (`{ rates: { "Steel Bars": 3.2, ... } }`) |
+| PUT | `/api/v2/cost-settings` | Replaces/updates the full rate set |
+| GET | `/api/v2/projects` | List of projects/tenders |
+| POST | `/api/v2/projects` | Creates a project/tender |
+| GET/PUT/DELETE | `/api/v2/projects/{id}` | Read/edit/delete a project |
+| GET | `/api/v2/projects/{projectId}/element-groups` | Elements (Walls/Columns) added to that project |
+| POST | `/api/v2/projects/{projectId}/element-groups` | Adds an element to the summary |
+| PUT | `/api/v2/projects/{projectId}/element-groups/{id}` | Edits an existing element |
+| PATCH | `/api/v2/projects/{projectId}/element-groups/{id}/group-id` | Renames only the "Group" (inline edit in the summary table) |
+| DELETE | `/api/v2/projects/{projectId}/element-groups/{id}` | Deletes an element |
+| DELETE | `/api/v2/projects/{projectId}/element-groups` | Clears the whole project summary ("Clear Summary") |
 
 All protected with `[Authorize]` — a valid Entra ID token is required for any of these.
 
@@ -60,4 +60,11 @@ This implements "last write wins" (no optimistic concurrency): if two people sav
 
 ## Frontend (`index.html`)
 
-`index.html` at the repo root has already been adapted to call these endpoints instead of `localStorage` (see the `APP_CONFIG` block near the top of the main `<script>` — that's where you fill in your `apiBaseUrl`, Entra ID `clientId`, `authority`/tenant ID, and the `apiScope` your API exposes). Check that section before deploying.
+`index.html` at the repo root can call these endpoints, but it only does so when `APP_CONFIG.storage` is `'api'` (see the `APP_CONFIG` block near the top of the main `<script>`). Until then it runs in `'local'` mode: no sign-in, and everything is saved in the user's browser, with Export/Import Project for backups and sharing.
+
+To switch to the shared database once the API is deployed:
+1. Confirm the Entra ID scope in `apiScope` exists (Azure Portal → the app registration → "Expose an API").
+2. Register the URL `index.html` is served from as a Redirect URI (Single-page application platform), and allow that origin in the API's CORS settings.
+3. Set `storage: 'api'` in `APP_CONFIG`.
+
+Projects kept in local mode can be moved across with Export Project (in local mode) and then Import Project (in api mode).

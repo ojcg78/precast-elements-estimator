@@ -13,7 +13,7 @@ namespace PrecastEstimator.Api.Controllers;
 /// dictionary, so GET/PUT operate on the full set rather than per-key.
 /// </summary>
 [ApiController]
-[Route("api/cost-settings")]
+[Route("api/v2/cost-settings")]
 [Authorize] // TODO: confirm this matches how your other controllers require an Entra ID token (policy/scheme name, if any).
 public class CostSettingsController : ControllerBase
 {

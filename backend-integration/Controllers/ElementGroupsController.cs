@@ -11,11 +11,11 @@ namespace PrecastEstimator.Api.Controllers;
 
 /// <summary>
 /// Walls/Columns groups added to a Project's summary (the app's
-/// "Project Summary" page). Nested under /api/projects/{projectId} because
+/// "Project Summary" page). Nested under /api/v2/projects/{projectId} because
 /// every group belongs to exactly one project.
 /// </summary>
 [ApiController]
-[Route("api/projects/{projectId:guid}/element-groups")]
+[Route("api/v2/projects/{projectId:guid}/element-groups")]
 [Authorize] // TODO: confirm this matches how your other controllers require an Entra ID token.
 public class ElementGroupsController : ControllerBase
 {
