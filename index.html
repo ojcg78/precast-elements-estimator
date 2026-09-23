@@ -169,6 +169,13 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
   <div class="tb-cell"><div class="k">Project</div><div class="v" id="topProjName">—</div></div>
   <div class="tb-cell"><div class="k">Code</div><div class="v" id="topProjCode">—</div></div>
   <div class="tb-spacer"></div>
+  <div class="tb-cell" id="signedInUserCell" style="display:none;">
+    <div class="k">Signed in as</div>
+    <div class="v" id="signedInUserName" style="font-size:11.5px;">—</div>
+  </div>
+  <div class="tb-cell" style="justify-content:center;">
+    <button class="btn small ghost" id="signOutBtn" style="display:none;">Sign out</button>
+  </div>
   <div class="tb-cell tb-total"><div class="k">Project Total</div><div class="v" id="topProjTotal">$0</div></div>
 </div>
 
@@ -189,6 +196,19 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <h2>Project</h2>
         <p>Cost estimates for precast wall panels and columns, from geometry and reinforcement through to a final $/m² or $/m³.</p>
       </div>
+      <div class="card">
+        <h2>Project / Tender</h2>
+        <p style="color:var(--dim); font-size:12.5px; margin:0 0 12px 0;">Projects/tenders and their element groups are shared in SQL Server — everyone signed in sees the same list.</p>
+        <div class="grid3">
+          <div class="field"><label>Select project / tender</label><select id="projectSelect"><option value="">— none yet —</option></select></div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn small" id="newProjectBtn">New Project</button>
+          <button class="btn small ghost" id="saveProjectBtn">Save Details</button>
+          <button class="btn small ghost" id="deleteProjectBtn">Delete Project</button>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Project details</h2>
         <div class="grid3">
@@ -244,7 +264,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
       <div class="page-head">
         <div class="eyebrow">Rates</div>
         <h2>Cost Settings</h2>
-        <p>Every rate that feeds the estimates below. Saved on this device (no server, no shared file to sync) — use export/import to carry it to another device or hand it to someone else.</p>
+        <p>Every rate that feeds the estimates below. Shared in SQL Server — anyone signed in sees and edits the same rates. Export/import still works as a local backup or bulk-edit shortcut.</p>
       </div>
       <div class="card">
         <div id="costLines"></div>
@@ -554,6 +574,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <script>
 /**
  * Precast calculation engine — migrated 1:1 from app.py / columns_tab.py.
@@ -562,6 +583,95 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
  * "equivalent" reformulations — line-for-line parity is the whole point,
  * so results can be diffed against the Streamlit app for validation.
  */
+
+// ---------------------------------------------------------------------
+// Backend + Entra ID configuration — fill these in for your environment.
+// See backend-integration/README.md for what the API side needs to expose.
+// ---------------------------------------------------------------------
+const APP_CONFIG = {
+  // TODO: confirm the exact path once the new controllers are wired into the
+  // existing API — it already serves under /api/v2/, so our routes
+  // (api/cost-settings, api/projects, ...) may need a version prefix added
+  // to match (e.g. api/v2/cost-settings) instead of duplicating "api".
+  apiBaseUrl: 'https://app.pfwork.com.au/api/v2',
+  entraId: {
+    // "Precast Estimating Application" app registration (single-tenant — "My organization only").
+    clientId: '5ee24dd4-b58e-41d9-8e78-099f656dc6c6',
+    authority: 'https://login.microsoftonline.com/ee8a20ad-1e0b-4a5c-a5fa-3cc6a490db89',
+    redirectUri: window.location.origin + window.location.pathname,
+    // TODO: this app registration doesn't have an Application ID URI / exposed
+    // scope yet (Azure Portal → this app → "Expose an API" → set Application
+    // ID URI, then "Add a scope", e.g. access_as_user). Update this once that
+    // exists — it will look like api://5ee24dd4-b58e-41d9-8e78-099f656dc6c6/<scope-name>.
+    apiScope: 'api://5ee24dd4-b58e-41d9-8e78-099f656dc6c6/access_as_user',
+  },
+};
+
+let msalInstance = null;
+let currentAccount = null;
+
+async function initAuth(){
+  msalInstance = new msal.PublicClientApplication({
+    auth: {
+      clientId: APP_CONFIG.entraId.clientId,
+      authority: APP_CONFIG.entraId.authority,
+      redirectUri: APP_CONFIG.entraId.redirectUri,
+    },
+    cache: { cacheLocation: 'localStorage' }, // only the MSAL token cache — app data itself now lives in SQL Server
+  });
+  await msalInstance.initialize();
+
+  const redirectResult = await msalInstance.handleRedirectPromise();
+  currentAccount = redirectResult?.account || msalInstance.getAllAccounts()[0] || null;
+
+  if (!currentAccount) {
+    await msalInstance.loginRedirect({ scopes: [APP_CONFIG.entraId.apiScope] });
+    return false; // browser is navigating to Entra ID login; nothing else to do on this pass
+  }
+  msalInstance.setActiveAccount(currentAccount);
+  return true;
+}
+
+async function getAccessToken(){
+  try {
+    const result = await msalInstance.acquireTokenSilent({ scopes: [APP_CONFIG.entraId.apiScope], account: currentAccount });
+    return result.accessToken;
+  } catch (e) {
+    await msalInstance.acquireTokenRedirect({ scopes: [APP_CONFIG.entraId.apiScope] });
+    throw e; // page is navigating away for interactive login; caller's request will not complete this pass
+  }
+}
+
+function renderSignedInUser(){
+  if (!currentAccount) return;
+  $('signedInUserCell').style.display = '';
+  $('signedInUserName').textContent = currentAccount.username || currentAccount.name || 'Signed in';
+  $('signOutBtn').style.display = '';
+}
+
+// ---------------------------------------------------------------------
+// Thin fetch wrapper: attaches the Entra ID access token to every call to
+// the shared API (cost settings, projects, element groups).
+// ---------------------------------------------------------------------
+async function apiFetch(path, options = {}){
+  const token = await getAccessToken();
+  const res = await fetch(`${APP_CONFIG.apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`API ${options.method || 'GET'} ${path} failed: ${res.status}`);
+  if (res.status === 204) return null;
+  return res.json();
+}
+const apiGet = (path) => apiFetch(path);
+const apiPost = (path, body) => apiFetch(path, { method:'POST', body: JSON.stringify(body) });
+const apiPut = (path, body) => apiFetch(path, { method:'PUT', body: JSON.stringify(body) });
+const apiPatch = (path, body) => apiFetch(path, { method:'PATCH', body: JSON.stringify(body) });
+const apiDelete = (path) => apiFetch(path, { method:'DELETE' });
 
 // ---------------------------------------------------------------------
 // Shared lookup tables (identical to app.py)
@@ -607,11 +717,11 @@ function calculateRebarWeight(area, spacingH, spacingV, barTypeH, barTypeV, plac
   spacingV = spacingV ? spacingV / 1000 : 0;
   let totalWeightM2 = 0;
 
-  // CORREGIDO: cada barra debe usar SU PROPIO espaciamiento (el que el usuario cargó
-  // junto a esa barra en la UI: "Horizontal bar" + "Horizontal spacing" van juntos),
-  // no el de la otra dirección. Antes estaban cruzados: las barras horizontales usaban
-  // el espaciamiento vertical y viceversa, lo cual daba un peso incorrecto salvo que
-  // ambos espaciamientos coincidieran por casualidad.
+  // FIXED: each bar must use ITS OWN spacing (the one the user entered
+  // alongside that bar in the UI: "Horizontal bar" + "Horizontal spacing" go
+  // together), not the other direction's. They used to be crossed: horizontal
+  // bars used the vertical spacing and vice versa, giving an incorrect weight
+  // unless both spacings happened to match by coincidence.
   if (barTypeH) {
     const diameterH = barDiameterLookup[barTypeH];
     const lapFactorH = applyLap ? 1 + (40 * diameterH / 6000) : 1;
@@ -667,7 +777,7 @@ function calculateUBarWeight(area, numPanels, wallThickness, uBarType, uBarSpaci
     return { weightM2: 0, weightTotal: 0 };
   }
   const diameter = barDiameterLookup[uBarType] || 0;
-  const legLength = uBarLegLength > 0 ? uBarLegLength : (40 * diameter) / 1000; // automático si no se ingresó manual
+  const legLength = uBarLegLength > 0 ? uBarLegLength : (40 * diameter) / 1000; // automatic if no manual value was entered
   const avgSpan = uBarLocation === 'Side' ? avgPanelHeight : (numPanels > 0 ? (area / numPanels) / avgPanelHeight : 0);
   let barsPerPanel = avgSpan / (uBarSpacing / 1000);
   barsPerPanel = Math.floor(barsPerPanel) + (barsPerPanel % 1 > 0 ? 1 : 0);
@@ -679,7 +789,7 @@ function calculateUBarWeight(area, numPanels, wallThickness, uBarType, uBarSpaci
   return { weightM2: area > 0 ? totalWeight / area : 0, weightTotal: totalWeight };
 }
 
-// Una "sección" de refuerzo (bars+mesh+trimer+u-bar) — Walls admite varias, sumadas.
+// A reinforcement "section" (bars+mesh+trimer+u-bar) — Walls allows several, summed together.
 function calculateSectionWeight(section, area, wallThickness, applyLap, numPanels, openingArea, numOpenings, avgPanelHeight, costDict) {
   const bars = calculateRebarWeight(area, section.horizontalSpacing, section.verticalSpacing,
     section.horizontalBar, section.verticalBar, section.horizontalPlacement, section.verticalPlacement, applyLap);
@@ -810,8 +920,8 @@ function calculateColumnReinforcement(c) {
   const longWeight2 = longLength2 * (steelWeightLookup[c.longBar2] || 0);
 
   const tieSpacingM = c.tieSpacingMm / 1000;
-  // CORREGIDO: +1 para reflejar un tie en cada extremo de la columna (base
-  // y coronación), no solo uno por intervalo — convención estándar de detallado.
+  // FIXED: +1 to reflect a tie at each end of the column (base
+  // and top), not just one per interval — standard detailing convention.
   const tieCount = (tieSpacingM > 0 && c.avgHeight > 0) ? Math.ceil(c.avgHeight / tieSpacingM) + 1 : 0;
   const tiePerimeter = c.tiePerimeterOverrideM > 0
     ? c.tiePerimeterOverrideM
@@ -819,9 +929,9 @@ function calculateColumnReinforcement(c) {
   const tieLength = tiePerimeter * tieCount;
   const tieWeight = tieLength * (steelWeightLookup[c.tieBar] || 0);
 
-  // CORREGIDO: los ligs atraviesan la dimensión MENOR de la sección (conectan las
-  // barras de las caras más largas cruzando el lado corto) — antes usaba siempre
-  // "width", lo cual daba un largo/peso incorrecto si depth < width.
+  // FIXED: ligs cross the SHORTER dimension of the section (connecting the
+  // bars on the longer faces across the short side) — it used to always use
+  // "width", which gave an incorrect length/weight when depth < width.
   const ligLength = ((Math.min(c.width, c.depth) - 2 * c.cover) + hookAllowanceM(c.ligBar)) * (tieCount * c.ligQty);
   // Ligs crossing the LONGER face instead (uncommon, but real — e.g. Type C style
   // details where most crossties go one way and one goes the other).
@@ -957,11 +1067,22 @@ const DEFAULT_COSTS = {
   'Ferrule with chair': 5, 'Threadbar': 13, 'Couplers': 11, 'Special Accessories': 5,
 };
 let costDict = {};
-function loadCosts(){
-  try{ costDict = JSON.parse(localStorage.getItem('precast-costs')) || {...DEFAULT_COSTS}; }
-  catch(e){ costDict = {...DEFAULT_COSTS}; }
+async function loadCosts(){
+  try{
+    const dto = await apiGet('/cost-settings');
+    costDict = (dto && dto.rates && Object.keys(dto.rates).length) ? dto.rates : {...DEFAULT_COSTS};
+  } catch(e){
+    console.error('Failed to load cost settings from the API, falling back to defaults.', e);
+    costDict = {...DEFAULT_COSTS};
+  }
 }
-function saveCosts(){ localStorage.setItem('precast-costs', JSON.stringify(costDict)); }
+async function saveCosts(){
+  try{ await apiPut('/cost-settings', { rates: costDict }); }
+  catch(e){
+    console.error('Failed to save cost settings to the API.', e);
+    alert('Could not save the cost settings to the server. Check your connection and try again.');
+  }
+}
 // Groups cost lines into the same conceptual categories used elsewhere in the app
 // (cost composition chart), so a 27-line flat list becomes scannable sections
 // instead of an unordered wall of fields.
@@ -1092,18 +1213,19 @@ function animateHeroValue(id, toNumber){
   const to = toNumber || 0;
   const changed = Math.abs(to-from) > 0.005 && el.textContent.trim() !== '' && el.textContent !== '—';
   if (changed) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
-  // CORREGIDO: cada llamada invalida cualquier animación anterior en curso para este mismo
-  // elemento. Sin esto, muchas llamadas rápidas seguidas (ej. al restaurar un grupo completo
-  // vía Edit/Duplicate, que dispara ~35 recálculos en sucesión) podían encimar varios loops
-  // de requestAnimationFrame escribiendo al mismo textContent, dejando un valor a mitad de
-  // camino de una animación vieja en vez del valor final correcto — un número "fantasma"
-  // matemáticamente inconsistente con el resto de la pantalla.
+  // FIXED: each call invalidates any animation already running for this same
+  // element. Without this, many rapid calls in a row (e.g. restoring a whole
+  // group via Edit/Duplicate, which triggers ~35 recalculations in
+  // succession) could stack several requestAnimationFrame loops writing to
+  // the same textContent, leaving a value stuck partway through an old
+  // animation instead of the correct final value — a "ghost" number
+  // mathematically inconsistent with the rest of the screen.
   const myGen = (parseInt(el.dataset.animGen || '0', 10) + 1);
   el.dataset.animGen = String(myGen);
   if (Math.abs(to-from) < 0.005) { el.textContent = fmt(to); return; }
   const duration = 280, start = performance.now();
   function tick(now){
-    if (el.dataset.animGen !== String(myGen)) return; // una animación más nueva tomó el control
+    if (el.dataset.animGen !== String(myGen)) return; // a newer animation took control
     const t = Math.min((now-start)/duration, 1);
     const eased = 1 - Math.pow(1-t, 3);
     el.textContent = fmt(from + (to-from)*eased);
@@ -1603,7 +1725,8 @@ const wallsInputIds = ['wArea','wThickness','wNumPanels','wAvgPanelHeight','wCon
   'wOpeningArea','wNumOpenings'];
 wallsInputIds.forEach(id=> $(id).addEventListener('input', calcWalls));
 wallsInputIds.forEach(id=> $(id).addEventListener('change', calcWalls));
-$('wAddToSummary').addEventListener('click', (e)=>{
+$('wAddToSummary').addEventListener('click', async (e)=>{
+  if (!requireProject()) return;
   const result = calcWalls();
   const groupId = $('wElementType').value.trim() || `Walls group ${summary.length+1}`;
   const isDuplicate = summary.some(g => g.type === 'Walls' && g.groupId === groupId);
@@ -1623,7 +1746,7 @@ $('wAddToSummary').addEventListener('click', (e)=>{
     if (sec.uBarType) parts.push(`U-Bar: ${sec.uBarType} @ ${sec.uBarSpacing}mm (${sec.uBarLocation})`);
     sectionInputs[`Section ${i+1}`] = parts.length ? parts.join(' | ') : 'n/a (empty)';
   });
-  summary.push({
+  const newWallGroup = {
     id: crypto.randomUUID(), groupId, type:'Walls', pricePerM3: result.totalCostPerM2, total: result.totalCost,
     costPerUnit: result.costPerM2,
     qtyPerUnit: result.qtyPerM2, unitRates: result.unitRates, qtyUnits: result.qtyUnits,
@@ -1646,8 +1769,15 @@ $('wAddToSummary').addEventListener('click', (e)=>{
     rates: { 'Concrete': costDict[$('wConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
       'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
-  });
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  };
+  try {
+    const created = await apiPost(`/projects/${currentProjectId}/element-groups`, toApiPayload(newWallGroup));
+    summary.push(fromApiDto(created));
+  } catch(err) {
+    console.error('Failed to save Walls group to the API.', err);
+    alert('Could not save the Walls group to the server.');
+    return;
+  }
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
 });
@@ -1691,8 +1821,112 @@ function goToPage(page){
   if (btn) btn.click();
 }
 
-// ---------- Project Summary ----------
-let summary = JSON.parse(localStorage.getItem('precast-summary') || '[]');
+// ---------- Project / Tender + Element Groups (shared, via API) ----------
+let currentProjectId = null;
+let projectsCache = [];
+
+// The client keeps working with the same flat group shape it always has
+// (id, groupId, type, pricePerM3, total, plus the raw/inputs/rates snapshot);
+// these two functions are the only place that shape is translated to/from
+// the API's { groupId, elementType, pricePerM3, total, data } wire shape.
+function toApiPayload(g){
+  const { id, groupId, type, pricePerM3, total, ...rest } = g;
+  return { groupId, elementType: type, pricePerM3, total, data: rest };
+}
+function fromApiDto(dto){
+  return { id: dto.id, groupId: dto.groupId, type: dto.elementType, pricePerM3: dto.pricePerM3, total: dto.total, ...dto.data };
+}
+function requireProject(){
+  if (!currentProjectId) { alert('Select or create a Project/Tender first (Project page) before adding an element group.'); return false; }
+  return true;
+}
+async function loadElementGroups(){
+  if (!currentProjectId) { summary = []; buildSummary(); return; }
+  try {
+    const dtos = await apiGet(`/projects/${currentProjectId}/element-groups`);
+    summary = dtos.map(fromApiDto);
+  } catch(e) {
+    console.error('Failed to load element groups from the API.', e);
+    summary = [];
+  }
+  buildSummary();
+}
+async function selectProject(id){
+  if (!id) { currentProjectId = null; $('projName').value=''; $('projCode').value=''; await loadElementGroups(); return; }
+  try {
+    const project = await apiGet(`/projects/${id}`);
+    currentProjectId = project.id;
+    $('projectSelect').value = project.id;
+    $('projName').value = project.name || '';
+    $('projCode').value = project.code || '';
+    $('projName').dispatchEvent(new Event('input', {bubbles:true}));
+    $('projCode').dispatchEvent(new Event('input', {bubbles:true}));
+    await loadElementGroups();
+  } catch(e) {
+    console.error('Failed to load project from the API.', e);
+    alert('Could not load the selected project.');
+  }
+}
+async function loadProjects(){
+  try {
+    projectsCache = await apiGet('/projects');
+  } catch(e) {
+    console.error('Failed to load projects from the API.', e);
+    projectsCache = [];
+  }
+  $('projectSelect').innerHTML = '<option value="">— none yet —</option>' +
+    projectsCache.map(p=>`<option value="${p.id}">${p.name}${p.code ? ' — '+p.code : ''}</option>`).join('');
+  if (projectsCache.length) {
+    await selectProject(projectsCache[0].id);
+  } else {
+    currentProjectId = null;
+    summary = [];
+    buildSummary();
+  }
+}
+$('projectSelect').addEventListener('change', (e)=> selectProject(e.target.value));
+$('newProjectBtn').addEventListener('click', async ()=>{
+  const name = prompt('Project / tender name:', $('projName').value || '');
+  if (name === null) return;
+  try {
+    const created = await apiPost('/projects', { name: name.trim() || 'New Project', code: $('projCode').value || null, clientName: null, status: null });
+    await loadProjects();
+    await selectProject(created.id);
+  } catch(e) {
+    console.error('Failed to create project.', e);
+    alert('Could not create the project on the server.');
+  }
+});
+$('saveProjectBtn').addEventListener('click', async ()=>{
+  const payload = { name: $('projName').value.trim() || 'Untitled project', code: $('projCode').value || null, clientName: null, status: null };
+  try {
+    if (!currentProjectId) {
+      const created = await apiPost('/projects', payload);
+      await loadProjects();
+      await selectProject(created.id);
+    } else {
+      await apiPut(`/projects/${currentProjectId}`, payload);
+      await loadProjects();
+    }
+  } catch(e) {
+    console.error('Failed to save project.', e);
+    alert('Could not save the project details to the server.');
+  }
+});
+$('deleteProjectBtn').addEventListener('click', async ()=>{
+  if (!currentProjectId) return;
+  if (!confirm('Delete this project and every element group in it? This cannot be undone.')) return;
+  try {
+    await apiDelete(`/projects/${currentProjectId}`);
+    currentProjectId = null;
+    await loadProjects();
+  } catch(e) {
+    console.error('Failed to delete project.', e);
+    alert('Could not delete the project on the server.');
+  }
+});
+
+let summary = [];
 function buildSummary(){
   if (summary.length === 0) {
     $('summaryTable').innerHTML = `<tr><td style="color:var(--dim); padding:14px 8px; font-size:13.5px;">Nothing added yet — go to Walls or Columns, price a group, then click "Add to Project Summary".</td></tr>`;
@@ -1717,9 +1951,14 @@ $('summaryTable').addEventListener('input', (e)=>{
   if(e.target.dataset.role !== 'editGroupId') return;
   const g = summary.find(x=>x.id===e.target.dataset.id); if(!g) return;
   g.groupId = e.target.value;
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
 });
-$('summaryTable').addEventListener('click', (e)=>{
+$('summaryTable').addEventListener('change', async (e)=>{
+  if(e.target.dataset.role !== 'editGroupId') return;
+  const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !currentProjectId) return;
+  try { await apiPatch(`/projects/${currentProjectId}/element-groups/${g.id}/group-id`, g.groupId); }
+  catch(err) { console.error('Failed to rename group.', err); alert('Could not rename the group on the server.'); }
+});
+$('summaryTable').addEventListener('click', async (e)=>{
   if (e.target.dataset.role === 'editRow') {
     const g = summary.find(x=>x.id===e.target.dataset.id); if(!g || !g.raw) return;
     if (g.type === 'Columns') {
@@ -1743,11 +1982,12 @@ $('summaryTable').addEventListener('click', (e)=>{
       goToPage('walls');
       restoreFields(g.raw);
       wallSections = g.rawSections ? JSON.parse(JSON.stringify(g.rawSections)) : wallSections;
-      // CORREGIDO: wireExtraList() capturó wallCustomElements/wallEoItems como parámetros
-      // en una única llamada al cargar la página — reasignar estas variables (=) rompe esa
-      // referencia, dejando los manejadores de Remove/edición operando sobre el array viejo
-      // en vez del restaurado. Mutar el array existente (length=0 + push) preserva la misma
-      // referencia en memoria, así los manejadores siguen viendo el contenido correcto.
+      // FIXED: wireExtraList() captured wallCustomElements/wallEoItems as
+      // parameters in a single call at page load — reassigning these
+      // variables (=) breaks that reference, leaving the Remove/edit
+      // handlers operating on the old array instead of the restored one.
+      // Mutating the existing array (length=0 + push) keeps the same
+      // in-memory reference, so the handlers keep seeing the right content.
       wallCustomElements.length = 0;
       if (g.rawCustomElements) wallCustomElements.push(...JSON.parse(JSON.stringify(g.rawCustomElements)));
       wallEoItems.length = 0;
@@ -1760,23 +2000,31 @@ $('summaryTable').addEventListener('click', (e)=>{
       calcWalls();
     }
     summary = summary.filter(x=>x.id!==e.target.dataset.id);
-    localStorage.setItem('precast-summary', JSON.stringify(summary));
     buildSummary();
+    if (currentProjectId) {
+      try { await apiDelete(`/projects/${currentProjectId}/element-groups/${g.id}`); }
+      catch(err) { console.error('Failed to remove group after edit.', err); }
+    }
     return;
   }
   if(e.target.dataset.role !== 'delRow') return;
+  const g = summary.find(x=>x.id===e.target.dataset.id);
   summary = summary.filter(x=>x.id!==e.target.dataset.id);
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
   buildSummary();
+  if (g && currentProjectId) {
+    try { await apiDelete(`/projects/${currentProjectId}/element-groups/${g.id}`); }
+    catch(err) { console.error('Failed to delete group.', err); alert('Could not delete the element on the server.'); }
+  }
 });
-$('colAddToSummary').addEventListener('click', (e)=>{
+$('colAddToSummary').addEventListener('click', async (e)=>{
+  if (!requireProject()) return;
   const cost = calcColumns();
   const groupId = $('colGroupId').value.trim() || `Columns group ${summary.length+1}`;
   const isDuplicate = summary.some(g => g.type === 'Columns' && g.groupId === groupId);
   if (isDuplicate && !confirm(`A Columns group called "${groupId}" is already in Project Summary. Add another one with the same name?`)) {
     return;
   }
-  summary.push({
+  const newColumnGroup = {
     id: crypto.randomUUID(), groupId, type:'Columns', pricePerM3: cost.pricePerM3, total: cost.totalGroupCost,
     costPerUnit: { 'Concrete':cost.concreteCost, 'Concrete Testing':cost.testingCost, 'Steel':cost.steelCost, 'Dowels':cost.dowelCost,
       'Lifting':cost.liftingCost, 'Special Accessories':cost.accessoriesCost, 'Additional Consumables':cost.consumablesCost, 'Labour':cost.labourCost },
@@ -1809,8 +2057,15 @@ $('colAddToSummary').addEventListener('click', (e)=>{
     rates: { 'Concrete': costDict[$('colConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
       'Wages': costDict['Wages']||0, 'Shopdrawings': costDict['Shopdrawings']||0, 'Formwork': costDict['Formwork']||0, 'Patching': costDict['Patching']||0 },
-  });
-  localStorage.setItem('precast-summary', JSON.stringify(summary));
+  };
+  try {
+    const created = await apiPost(`/projects/${currentProjectId}/element-groups`, toApiPayload(newColumnGroup));
+    summary.push(fromApiDto(created));
+  } catch(err) {
+    console.error('Failed to save Columns group to the API.', err);
+    alert('Could not save the Columns group to the server.');
+    return;
+  }
   buildSummary();
   e.target.classList.remove('flash'); void e.target.offsetWidth; e.target.classList.add('flash');
 });
@@ -1819,7 +2074,14 @@ $('colDuplicateGroup').addEventListener('click', ()=>{
   $('colRefDetail').value = '';
   $('colGroupId').focus();
 });
-$('clearSummary').addEventListener('click', ()=>{ summary = []; localStorage.setItem('precast-summary','[]'); buildSummary(); });
+$('clearSummary').addEventListener('click', async ()=>{
+  summary = [];
+  buildSummary();
+  if (currentProjectId) {
+    try { await apiDelete(`/projects/${currentProjectId}/element-groups`); }
+    catch(err) { console.error('Failed to clear element groups.', err); alert('Could not clear the summary on the server.'); }
+  }
+});
 
 // ---------- Excel export (Report + Audit, via SheetJS) ----------
 // ---------- Excel cell-style helpers (matches the original xlsxwriter look: bold headers,
@@ -2254,12 +2516,25 @@ document.addEventListener('focusin', (e)=>{
 });
 
 // ---------- Init ----------
-loadCosts(); buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
-updateDowelBlocks();
-buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
-initRequiredFields();
-calcColumns(); calcWalls(); buildSummary();
-updateWGeomTag(); updateColGeomTag(); addRegistrationMarks();
+// Everything below needs a signed-in Entra ID user and the shared API, so it
+// runs after initAuth() resolves (initAuth() itself navigates away to the
+// Entra ID login page and returns false if nobody is signed in yet).
+(async function main(){
+  const authed = await initAuth();
+  if (!authed) return;
+  renderSignedInUser();
+  $('signOutBtn').addEventListener('click', ()=> msalInstance.logoutRedirect());
+
+  await loadCosts();
+  buildCostLines(); buildBarTypeSelects(); refreshConcreteOptions();
+  updateDowelBlocks();
+  buildWallSections(); buildCustomElements(); buildEoItems(); buildColConsumables();
+  initRequiredFields();
+  calcColumns(); calcWalls(); buildSummary();
+  updateWGeomTag(); updateColGeomTag(); addRegistrationMarks();
+
+  await loadProjects();
+})();
 </script>
 </body>
 </html>
