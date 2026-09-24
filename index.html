@@ -268,7 +268,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
       <div class="page-head">
         <div class="eyebrow">Rates</div>
         <h2>Cost Settings</h2>
-        <p>Every rate that feeds the estimates below. Shared in SQL Server — anyone signed in sees and edits the same rates. Export/import still works as a local backup or bulk-edit shortcut.</p>
+        <p>Every rate that feeds the estimates below. <span id="costsStorageNote"></span> Export/import works as a backup or bulk-edit shortcut.</p>
       </div>
       <div class="card">
         <div id="costLines"></div>
@@ -1279,8 +1279,21 @@ const DEFAULT_COSTS = {
   'SL102': 2.75, 'SL62': 3.04, 'SL72': 2.69, 'SL81': 2.72, 'SL82': 2.59, 'SL92': 3.16,
   'Steel Bars': 3.2, 'Concrete Testing': 40, 'Ripbox': 90, 'Lifting': 25,
   'Wages': 45, 'Shopdrawings': 20, 'Formwork': 35, 'Patching': 15,
-  'Ferrule with chair': 5, 'Threadbar': 13, 'Couplers': 11, 'Special Accessories': 5,
+  'Ferrule with chair': 6, 'Threadbar': 13, 'Couplers': 11, 'Special Accessories': 5,
 };
+// When a default rate changes, saved rates still at the old default are moved to
+// the new one on load; a rate someone set to another value on purpose is kept.
+const DEFAULT_COST_CHANGES = [
+  { name: 'Ferrule with chair', from: 5, to: 6 },
+];
+function applyDefaultCostChanges(rates){
+  let changed = false;
+  DEFAULT_COST_CHANGES.forEach(({ name, from, to }) => {
+    if (rates[name] === from) { rates[name] = to; changed = true; }
+  });
+  return changed;
+}
+
 let costDict = {};
 async function loadCosts(){
   try{
@@ -1289,7 +1302,9 @@ async function loadCosts(){
   } catch(e){
     console.error('Failed to load cost settings, falling back to defaults.', e);
     costDict = {...DEFAULT_COSTS};
+    return;
   }
+  if (applyDefaultCostChanges(costDict)) await saveCosts();
 }
 async function saveCosts(){
   try{ await dataStore.saveCostRates(costDict); }
@@ -2897,9 +2912,11 @@ document.addEventListener('focusin', (e)=>{
 function renderStorageMode(){
   if (dataStore.kind === 'api') {
     $('storageNote').textContent = 'Projects/tenders and their element groups are shared in SQL Server — everyone signed in sees the same list.';
+    $('costsStorageNote').textContent = 'Shared in SQL Server — anyone signed in sees and edits the same rates.';
     return;
   }
   $('storageNote').textContent = 'Projects/tenders and their element groups are saved in this browser only. Use Export Project to back one up or share it with a colleague, and Import Project to load it.';
+  $('costsStorageNote').textContent = 'Changes are saved in this browser only — other computers and colleagues keep their own rates.';
   $('signedInUserLabel').textContent = 'Storage';
   $('signedInUserName').textContent = 'This browser';
   $('signedInUserCell').style.display = '';
