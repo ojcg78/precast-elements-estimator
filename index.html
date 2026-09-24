@@ -268,7 +268,7 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
       <div class="page-head">
         <div class="eyebrow">Rates</div>
         <h2>Cost Settings</h2>
-        <p>Every rate that feeds the estimates below. Shared in SQL Server — anyone signed in sees and edits the same rates. Export/import still works as a local backup or bulk-edit shortcut.</p>
+        <p>Every rate that feeds the estimates below. <span id="costsStorageNote"></span> Export/import works as a backup or bulk-edit shortcut.</p>
       </div>
       <div class="card">
         <div id="costLines"></div>
@@ -2897,9 +2897,11 @@ document.addEventListener('focusin', (e)=>{
 function renderStorageMode(){
   if (dataStore.kind === 'api') {
     $('storageNote').textContent = 'Projects/tenders and their element groups are shared in SQL Server — everyone signed in sees the same list.';
+    $('costsStorageNote').textContent = 'Shared in SQL Server — anyone signed in sees and edits the same rates.';
     return;
   }
   $('storageNote').textContent = 'Projects/tenders and their element groups are saved in this browser only. Use Export Project to back one up or share it with a colleague, and Import Project to load it.';
+  $('costsStorageNote').textContent = 'Changes are saved in this browser only — other computers and colleagues keep their own rates.';
   $('signedInUserLabel').textContent = 'Storage';
   $('signedInUserName').textContent = 'This browser';
   $('signedInUserCell').style.display = '';
