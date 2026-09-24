@@ -91,7 +91,7 @@ USING (VALUES
     ('SL102', 2.75), ('SL62', 3.04), ('SL72', 2.69), ('SL81', 2.72), ('SL82', 2.59), ('SL92', 3.16),
     ('Steel Bars', 3.2), ('Concrete Testing', 40), ('Ripbox', 90), ('Lifting', 25),
     ('Wages', 45), ('Shopdrawings', 20), ('Formwork', 35), ('Patching', 15),
-    ('Ferrule with chair', 5), ('Threadbar', 13), ('Couplers', 11), ('Special Accessories', 5)
+    ('Ferrule with chair', 6), ('Threadbar', 13), ('Couplers', 11), ('Special Accessories', 5)
 ) AS source (SettingKey, SettingValue)
 ON target.SettingKey = source.SettingKey
 WHEN NOT MATCHED BY TARGET THEN
