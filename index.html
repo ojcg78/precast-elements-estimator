@@ -500,25 +500,38 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         </div>
         <h3>Dowels</h3>
         <div class="grid4">
-          <div class="field"><label>Mode<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Column-to-column connections only. Exclude = no dowel details (e.g. footing connections, where only sleeves are supplied). Estimate = assume one dowel per longitudinal bar, same size. I know the details = enter bars from the drawings, or the total kg from the steel schedule. Dowels are priced as extra kg at the Steel Bars rate (sleeves, templates etc. are covered by that rate).</span></span></label>
-            <select id="colDowelMode"><option value="exclude" selected>Exclude</option><option value="estimatePerLongBar">Estimate (match longitudinal bars)</option><option value="manual">I know the details</option></select>
+          <div class="field"><label>Mode<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Column-to-column connections only. Exclude = no dowels priced (e.g. footing connections, where only sleeves are supplied). Estimate = no details yet, so price an assumption. I know the details = enter bars from the drawings, or the total kg from the steel schedule. Dowels are priced as extra kg at the Steel Bars rate (sleeves, templates etc. are covered by that rate), with no waste.</span></span></label>
+            <select id="colDowelMode"><option value="exclude" selected>Exclude</option><option value="estimatePerLongBar">Estimate</option><option value="manual">I know the details</option></select>
+          </div>
+          <div class="field" id="colDowelEstimateBasisField" style="display:none;"><label>Estimate basis<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Match longitudinal bars = one dowel per longitudinal bar, same size (full continuity across the joint). Only available with Bar Detail. Assumed dowel bar = you choose how many dowels per column and their size, e.g. 4 corner bars (nominal connection).</span></span></label>
+            <select id="colDowelEstimateBasis"><option value="matchLongBars" selected>Match longitudinal bars</option><option value="assumedBar">Assumed dowel bar</option></select>
           </div>
           <div class="field" id="colDowelManualInputField" style="display:none;"><label>Enter details as</label>
-            <select id="colDowelManualInput"><option value="bars" selected>Bars (qty × size × length)</option><option value="totalKg">Total weight per column (kg)</option></select>
+            <select id="colDowelManualInput"><option value="bars" selected>Bars (qty × size × length)</option><option value="totalKg">Total weight (kg)</option></select>
           </div>
           <div class="field" id="colDowelSetsField" style="display:none;"><label>Dowel sets per column (avg)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">1 = every column in the group has one set of dowels. Use a decimal when only some do, e.g. 0.67 if the top-storey columns (1 in 3) have none. The dowel weight per column is multiplied by this.</span></span></label><input type="number" id="colDowelSets" value="1" step="0.01" min="0"></div>
+        </div>
+        <div class="grid4" id="colDowelAssumedBlock" style="display:none; margin-top:12px;">
+          <div class="field"><label>Assumed dowels per column</label><input type="number" id="colDowelAssumedQty" value="4" min="0"></div>
+          <div class="field"><label>Assumed dowel bar</label><select id="colDowelAssumedBar"></select></div>
         </div>
         <div class="grid4" id="colDowelBarsBlock" style="display:none; margin-top:12px;">
           <div class="field"><label>Qty per set (Group 1)</label><input type="number" id="colDowelManualQty" value="0"></div>
           <div class="field"><label>Dowel bar (Group 1)</label><select id="colDowelBar"></select></div>
-          <div class="field" id="colDowelGroup2Qty"><label>Qty per set (Group 2, optional)</label><input type="number" id="colDowelManualQty2" value="0"></div>
-          <div class="field" id="colDowelGroup2Bar"><label>Dowel bar (Group 2)</label><select id="colDowelBar2"></select></div>
+          <div class="field"><label>Length (m, Group 1, 0 = auto)</label><input type="number" id="colDowelLength1" value="0" step="0.01" min="0"></div>
+          <div class="field"></div>
+          <div class="field"><label>Qty per set (Group 2, optional)</label><input type="number" id="colDowelManualQty2" value="0"></div>
+          <div class="field"><label>Dowel bar (Group 2)</label><select id="colDowelBar2"></select></div>
+          <div class="field"><label>Length (m, Group 2, 0 = auto)</label><input type="number" id="colDowelLength2" value="0" step="0.01" min="0"></div>
         </div>
         <div class="grid4" id="colDowelTotalKgBlock" style="display:none; margin-top:12px;">
-          <div class="field"><label>Total dowel weight per column (kg)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">From the steel schedule: total dowel kg for the group ÷ number of columns. Entered as-is — the sets-per-column factor is not applied.</span></span></label><input type="number" id="colDowelTotalKg" value="0" step="0.1"></div>
+          <div class="field"><label>Total dowel weight (kg)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">From the steel schedule, entered as-is — the sets-per-column factor is not applied (the schedule already reflects which columns have dowels). A whole-group total is divided by the number of columns in the group.</span></span></label><input type="number" id="colDowelTotalKg" value="0" step="0.1" min="0"></div>
+          <div class="field"><label>Weight is for</label>
+            <select id="colDowelTotalKgBasis"><option value="group" selected>Whole group</option><option value="column">One column</option></select>
+          </div>
         </div>
         <div class="grid4" id="colDowelLengthBlock" style="display:none; margin-top:12px;">
-          <div class="field"><label>Length override (m, 0 = auto)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Auto length = 2 × 40d + 20 mm: 40d anchored in the lower column, 40d grouted into the upper column's metal duct, plus a 20 mm joint (e.g. N20 = 1.62 m). Enter a length here to use the shop-drawing length instead.</span></span></label><input type="number" id="colDowelLengthOverride" value="0" step="0.01"></div>
+          <div class="field"><label>Length override (m, 0 = auto)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Auto length = 2 × 40d + 20 mm: 40d anchored in the lower column, 40d grouted into the upper column's metal duct, plus a 20 mm joint (e.g. N20 = 1.62 m). Enter a length here to use the shop-drawing length instead.</span></span></label><input type="number" id="colDowelLengthOverride" value="0" step="0.01" min="0"></div>
         </div>
         <div id="colDowelInfo" style="color:var(--dim); font-size:13px; margin-top:10px;"></div>
         <div id="colDowelWarn"></div>
@@ -539,7 +552,6 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <div class="grid4" style="margin-top:10px;">
           <div class="field" id="colWasteConcreteField" style="display:none;"><label>Concrete</label><input type="number" id="colWasteConcrete" value="0"></div>
           <div class="field" id="colWasteSteelField" style="display:none;"><label>Reinforcing steel</label><input type="number" id="colWasteSteel" value="0"></div>
-          <div class="field" id="colWasteDowelField" style="display:none;"><label>Dowels</label><input type="number" id="colWasteDowel" value="0"></div>
         </div>
         <details style="margin-top:14px;"><summary class="sub-summary">Formwork area correction (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Off by default. Columns are usually cast lying on the bed like a beam: the bed face and open top face need no formwork, only the two side faces do. The traditional method (default) uses the full 4-side perimeter instead. Turning this on switches Wages/Shopdrawings/Formwork/Patching to the real 2-face area, scaled by the multiplier below.</span></span></summary>
           <div class="grid4" style="margin-top:10px;">
@@ -1114,46 +1126,71 @@ function calculateColumnReinforcement(c) {
 }
 
 // Column-to-column dowels. Priced as extra kg of steel only (sleeves, templates
-// etc. are covered by the Steel Bars $/kg rate).
+// etc. are covered by the Steel Bars $/kg rate), with no waste.
 //   exclude            -> 0 kg (e.g. footing connections: sleeves only)
-//   estimatePerLongBar -> one dowel per longitudinal bar, same size, per group.
-//                         With a General Reo Rate there are no bar groups, so the
-//                         caller passes the manually entered qty/bar instead.
-//   manual             -> bar groups from the drawings, or total kg per column.
+//   estimatePerLongBar -> an assumption, on one of two bases:
+//       matchLongBars  -> one dowel per longitudinal bar, same size (Bar Detail only)
+//       assumedBar     -> the user's qty per column and bar size
+//   manual             -> bar groups from the drawings (each with its own length),
+//                         or the total kg from the steel schedule (group or column).
 // Auto length = 2 × 40d + 20 mm (autoDowelLength): 40d anchored in the lower column,
-// 40d grouted into the upper column's duct, 20 mm joint. Override = shop-drawing length.
-function columnDowelLength(bar, lengthOverrideM) {
-  if (lengthOverrideM > 0) return lengthOverrideM;
+// 40d grouted into the upper column's duct, 20 mm joint.
+function columnDowelLength(bar, lengthM) {
+  if (lengthM > 0) return lengthM;
   return barDiameterLookup[bar] ? autoDowelLength(bar) : 0;
 }
 
-function calculateColumnDowels({ mode, groups, useTotalKg, totalKgPerColumn, setsPerColumn, lengthOverrideM }) {
+const COL_DOWEL_BASIS_LABELS = {
+  matchLongBars: 'Estimated (match longitudinal bars)',
+  assumedBar: 'Estimated (assumed dowel bar)',
+};
+
+// groups: [{ qty, bar, lengthM }] — lengthM > 0 is a given length, otherwise auto.
+function calculateColumnDowels({ mode, basis, groups, setsPerColumn, useTotalKg, totalKg, totalKgBasis, groupQty }) {
   const empty = { weight: 0, weightPerSet: 0, qtyPerSet: 0, sets: 0, lines: [], assumption: 'Excluded — no dowels priced' };
   if (mode === 'exclude') return empty;
 
   if (mode === 'manual' && useTotalKg) {
-    const weight = Math.max(0, totalKgPerColumn || 0);
+    const total = Math.max(0, totalKg || 0);
+    if (totalKgBasis === 'column') {
+      return { ...empty, weight: total, weightPerSet: total, sets: 1,
+        assumption: `Total weight entered: ${total.toFixed(1)} kg per column` };
+    }
+    const weight = groupQty > 0 ? total / groupQty : 0;
     return { ...empty, weight, weightPerSet: weight, sets: 1,
-      assumption: `Total weight entered: ${weight.toFixed(1)} kg per column` };
+      assumption: `Total weight entered: ${total.toFixed(1)} kg for the group ÷ ${groupQty || 0} column(s) → ${weight.toFixed(1)} kg per column` };
   }
 
   const sets = Math.max(0, Number.isFinite(setsPerColumn) ? setsPerColumn : 1);
   const lines = (groups || [])
     .filter(g => g.qty > 0 && g.bar)
     .map(g => {
-      const length = columnDowelLength(g.bar, lengthOverrideM);
-      return { qty: g.qty, bar: g.bar, length, weight: g.qty * length * (steelWeightLookup[g.bar] || 0) };
+      const length = columnDowelLength(g.bar, g.lengthM);
+      return { qty: g.qty, bar: g.bar, length, lengthGiven: g.lengthM > 0,
+        weight: g.qty * length * (steelWeightLookup[g.bar] || 0) };
     });
   const weightPerSet = lines.reduce((a, l) => a + l.weight, 0);
   const qtyPerSet = lines.reduce((a, l) => a + l.qty, 0);
   const weight = weightPerSet * sets;
 
-  const lenText = lengthOverrideM > 0 ? `${lengthOverrideM} m (override)` : 'auto 2 × 40d + 20 mm';
-  const barsText = lines.map(l => `${l.qty}-${l.bar} × ${l.length.toFixed(2)} m`).join(' + ') || 'no bars entered';
-  const label = mode === 'estimatePerLongBar' ? 'Estimated (match longitudinal bars)' : 'Detailed';
-  const assumption = `${label}: ${barsText} [${lenText}], ${sets} set(s) per column → ${weight.toFixed(1)} kg per column`;
+  const barsText = lines.map(l => `${l.qty}-${l.bar} × ${l.length.toFixed(2)} m (${l.lengthGiven ? 'given' : 'auto 2 × 40d + 20 mm'})`).join(' + ') || 'no bars entered';
+  const label = mode === 'manual' ? 'Detailed' : (COL_DOWEL_BASIS_LABELS[basis] || 'Estimated');
+  const assumption = `${label}: ${barsText}, ${sets} set(s) per column → ${weight.toFixed(1)} kg per column`;
 
   return { weight, weightPerSet, qtyPerSet, sets, lines, assumption };
+}
+
+// For reference only (General Reo Rate + assumed dowel bar): roughly how many
+// bars of the given size the Reo Rate implies for the longitudinal steel.
+// Assumes 80 % of the reo is longitudinal, never less than the AS 3600 column
+// minimum of 1 % of the section, and at least 4 bars.
+const COL_LONG_STEEL_SHARE = 0.8;
+const STEEL_DENSITY_KG_M3 = 7850;
+function impliedLongitudinalBars(reoRate, sectionAreaM2, bar) {
+  const kgPerM = steelWeightLookup[bar] || 0;
+  if (!(reoRate > 0) || !(sectionAreaM2 > 0) || !kgPerM) return 0;
+  const steelAreaM2 = Math.max(COL_LONG_STEEL_SHARE * reoRate * sectionAreaM2 / STEEL_DENSITY_KG_M3, 0.01 * sectionAreaM2);
+  return Math.max(4, Math.ceil(steelAreaM2 / (kgPerM / STEEL_DENSITY_KG_M3)));
 }
 
 function calculateColumnCost(c, costDict) {
@@ -1164,7 +1201,8 @@ function calculateColumnCost(c, costDict) {
   const testingCost = c.volumePerColumn * g('Concrete Testing');
   const steelQty = c.reoWeightUsed * (1 + c.wasteSteel / 100);
   const steelCost = steelQty * g('Steel Bars');
-  const dowelQtyKg = c.dowelWeight * (1 + c.wasteDowel / 100);
+  // No waste on dowels: they're cut to length for the job.
+  const dowelQtyKg = c.dowelWeight;
   const dowelCost = dowelQtyKg * g('Steel Bars');
   const liftingCost = c.liftingQty * g('Lifting');
   const accessoriesCost = c.accessoriesQty * g('Special Accessories');
@@ -1341,7 +1379,7 @@ $('importCostsExcelFile').addEventListener('change', (e)=>{
 });
 
 // ---------- Bar type dropdowns ----------
-const barTypeSelectIds = ['colLongBar','colLongBar2','colTieBar','colLigBar','colDowelBar','colDowelBar2','wDowelBar'];
+const barTypeSelectIds = ['colLongBar','colLongBar2','colTieBar','colLigBar','colDowelBar','colDowelBar2','colDowelAssumedBar','wDowelBar'];
 function buildBarTypeSelects(){
   const opts = ['', ...Object.keys(steelWeightLookup)].map(b=>`<option value="${b}">${b||'—'}</option>`).join('');
   barTypeSelectIds.forEach(id=>{ $(id).innerHTML = opts; });
@@ -1480,7 +1518,7 @@ function calcColumns(){
   $('colCrossWarn').innerHTML = reo.crossCheckWarningPct !== null
     ? `<div class="warn-box">Reo Rate difference of ${(reo.crossCheckWarningPct*100).toFixed(1)}% between the general rate given and the rate estimated from bar detail — worth reviewing before pricing.</div>` : '';
 
-  const dowels = calcColumnDowelsFromForm(steelMode);
+  const dowels = calcColumnDowelsFromForm({ steelMode, groupQty, reoRate: parseFloat($('colReoRateGiven').value)||0, sectionAreaM2: width * depth });
 
   const useCorrectedFormwork = $('colUseCorrectedFormwork').value === 'yes';
   const formworkMultiplier = parseFloat($('colFormworkMultiplier').value)||1;
@@ -1488,7 +1526,6 @@ function calcColumns(){
   updateWasteVisibility({
     'colWasteConcreteField': volumePerColumn > 0,
     'colWasteSteelField': reo.reoWeightUsed > 0,
-    'colWasteDowelField': dowels.weight > 0,
   }, 'colWasteApplyAllRow', 'colWasteNoneMsg');
 
   const consumables = {};
@@ -1500,7 +1537,6 @@ function calcColumns(){
     volumePerColumn, concreteType: $('colConcreteType').value,
     wasteConcrete: parseFloat($('colWasteConcrete').value)||0,
     wasteSteel: parseFloat($('colWasteSteel').value)||0,
-    wasteDowel: parseFloat($('colWasteDowel').value)||0,
     reoWeightUsed: reo.reoWeightUsed, dowelWeight: dowels.weight,
     liftingQty: parseFloat($('colLiftingQty').value)||0,
     accessoriesQty: parseFloat($('colAccessoriesQty').value)||0,
@@ -1556,74 +1592,104 @@ function calcColumns(){
  'colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap','colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigQtyOther','colLigBar','colExtraClosedTieQty','colExtraClosedTiePerimeterMm',
  'colDowelMode','colDowelManualQty','colDowelBar','colDowelLengthOverride',
  'colDowelManualQty2','colDowelBar2','colDowelSets','colDowelTotalKg',
- 'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel','colWasteDowel',
+ 'colDowelAssumedQty','colDowelAssumedBar','colDowelLength1','colDowelLength2',
+ 'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel',
  'colFormworkMultiplier'
 ].forEach(id=> $(id).addEventListener('input', calcColumns));
 $('colDowelMode').addEventListener('change', calcColumns);
-$('colDowelManualInput').addEventListener('change', calcColumns);
+['colDowelManualInput','colDowelTotalKgBasis'].forEach(id => $(id).addEventListener('change', calcColumns));
+$('colDowelEstimateBasis').addEventListener('change', (e) => { e.target.dataset.preferred = e.target.value; calcColumns(); });
 
 // Reads the Dowels inputs, shows only the fields the active mode uses, and
 // warns when a non-Exclude mode ends up pricing 0 kg.
-function calcColumnDowelsFromForm(steelMode){
+function calcColumnDowelsFromForm({ steelMode, groupQty, reoRate, sectionAreaM2 }){
   const mode = $('colDowelMode').value;
   const num = id => parseFloat($(id).value)||0;
+  const isEstimate = mode === 'estimatePerLongBar';
+
+  // "Match longitudinal bars" needs bar groups, so it is only offered with Bar Detail.
+  // The user's own choice is kept in data-preferred, so switching Steel back to
+  // Bar Detail brings "Match" back instead of leaving the fallback in place.
+  const basisSelect = $('colDowelEstimateBasis');
+  const matchOption = basisSelect.querySelector('option[value="matchLongBars"]');
+  matchOption.hidden = matchOption.disabled = steelMode !== 'barDetail';
+  if (!basisSelect.dataset.preferred) basisSelect.dataset.preferred = basisSelect.value;
+  const preferredBasis = basisSelect.dataset.preferred;
+  const basis = (preferredBasis === 'matchLongBars' && steelMode !== 'barDetail') ? 'assumedBar' : preferredBasis;
+  basisSelect.value = basis;
+  const switchedBasis = isEstimate && basis !== preferredBasis;
   const useTotalKg = mode === 'manual' && $('colDowelManualInput').value === 'totalKg';
-  // "Estimate" derives qty/size from the longitudinal groups when Bar Detail is used;
-  // with a General Reo Rate those don't exist, so qty/size are entered by hand.
-  const estimateFromBars = mode === 'estimatePerLongBar' && steelMode === 'barDetail';
-  const showBarInputs = (mode === 'manual' && !useTotalKg) || (mode === 'estimatePerLongBar' && !estimateFromBars);
+  const useBars = mode === 'manual' && !useTotalKg;
 
   const show = (id, on) => { $(id).style.display = on ? '' : 'none'; };
+  show('colDowelEstimateBasisField', isEstimate);
   show('colDowelManualInputField', mode === 'manual');
   show('colDowelSetsField', mode !== 'exclude' && !useTotalKg);
-  show('colDowelBarsBlock', showBarInputs);
+  show('colDowelAssumedBlock', isEstimate && basis === 'assumedBar');
+  show('colDowelBarsBlock', useBars);
   show('colDowelTotalKgBlock', useTotalKg);
-  show('colDowelLengthBlock', mode !== 'exclude' && !useTotalKg);
+  show('colDowelLengthBlock', isEstimate);
 
-  const groups = estimateFromBars
-    ? [{ qty: num('colLongQty'), bar: $('colLongBar').value }, { qty: num('colLongQty2'), bar: $('colLongBar2').value }]
-    : [{ qty: num('colDowelManualQty'), bar: $('colDowelBar').value }, { qty: num('colDowelManualQty2'), bar: $('colDowelBar2').value }];
+  const overrideM = num('colDowelLengthOverride');
+  let groups = [];
+  if (isEstimate && basis === 'matchLongBars') {
+    groups = [{ qty: num('colLongQty'), bar: $('colLongBar').value, lengthM: overrideM },
+              { qty: num('colLongQty2'), bar: $('colLongBar2').value, lengthM: overrideM }];
+  } else if (isEstimate) {
+    groups = [{ qty: num('colDowelAssumedQty'), bar: $('colDowelAssumedBar').value, lengthM: overrideM }];
+  } else if (useBars) {
+    groups = [{ qty: num('colDowelManualQty'), bar: $('colDowelBar').value, lengthM: num('colDowelLength1') },
+              { qty: num('colDowelManualQty2'), bar: $('colDowelBar2').value, lengthM: num('colDowelLength2') }];
+  }
 
   const setsRaw = parseFloat($('colDowelSets').value);
   const dowels = calculateColumnDowels({
-    mode, groups, useTotalKg,
-    totalKgPerColumn: num('colDowelTotalKg'),
+    mode, basis, groups, useTotalKg,
     setsPerColumn: Number.isFinite(setsRaw) ? setsRaw : 1,
-    lengthOverrideM: num('colDowelLengthOverride'),
+    totalKg: num('colDowelTotalKg'), totalKgBasis: $('colDowelTotalKgBasis').value, groupQty,
   });
 
-  let info = '';
-  if (estimateFromBars && dowels.lines.length) {
-    info = 'From longitudinal bars: ' + dowels.lines.map(l => `${l.qty}-${l.bar} × ${l.length.toFixed(2)} m`).join(' + ') +
-      ` = ${dowels.weightPerSet.toFixed(1)} kg per set.`;
-  } else if (mode === 'estimatePerLongBar' && !estimateFromBars) {
-    info = 'General Reo Rate in use — enter the assumed dowel qty and size per set.';
+  const info = [];
+  if (isEstimate && basis === 'matchLongBars' && dowels.lines.length) {
+    info.push('From longitudinal bars: ' + dowels.lines.map(l => `${l.qty}-${l.bar} × ${l.length.toFixed(2)} m`).join(' + ') +
+      ` = ${dowels.weightPerSet.toFixed(1)} kg per set.`);
+  }
+  if (switchedBasis) info.push('Match longitudinal bars needs Bar Detail, so the estimate uses an assumed dowel bar.');
+  if (isEstimate && basis === 'assumedBar' && steelMode === 'generalRate') {
+    const refBar = $('colDowelAssumedBar').value || 'N24';
+    const implied = impliedLongitudinalBars(reoRate, sectionAreaM2, refBar);
+    if (implied > 0) {
+      info.push(`For reference: a Reo Rate of ${reoRate} kg/m³ implies ≈ ${implied}-${refBar} longitudinal bars (assuming ${COL_LONG_STEEL_SHARE * 100}% of the reo is longitudinal).`);
+    }
   }
   if (mode !== 'exclude' && steelMode === 'generalRate') {
-    info += (info ? ' ' : '') + 'Check the Reo Rate given does not already include dowels (double count).';
+    info.push('Check the Reo Rate given does not already include dowels (double count).');
   }
-  $('colDowelInfo').textContent = info;
+  $('colDowelInfo').textContent = info.join(' ');
 
   // A qty entered without a dowel bar can't be weighed: highlight the bar field.
-  const missingBar = [['colDowelManualQty','colDowelBar'], ['colDowelManualQty2','colDowelBar2']]
-    .map(([qtyId, barId]) => {
-      const missing = showBarInputs && num(qtyId) > 0 && !$(barId).value;
-      $(barId).classList.toggle('field-missing', missing);
-      return missing;
-    });
+  const barChecks = [
+    ['Assumed dowel bar', 'colDowelAssumedQty', 'colDowelAssumedBar', isEstimate && basis === 'assumedBar'],
+    ['Group 1', 'colDowelManualQty', 'colDowelBar', useBars],
+    ['Group 2', 'colDowelManualQty2', 'colDowelBar2', useBars],
+  ];
+  const missingBar = barChecks.filter(([, qtyId, barId, active]) => {
+    const missing = active && num(qtyId) > 0 && !$(barId).value;
+    $(barId).classList.toggle('field-missing', missing);
+    return missing;
+  }).map(([name]) => name);
 
   const warnings = [];
-  if (missingBar.some(Boolean)) {
-    warnings.push('Select a dowel bar for ' + ['Group 1', 'Group 2'].filter((_, i) => missingBar[i]).join(' and ') +
-      ' — a qty without a bar is priced at 0 kg.');
+  if (missingBar.length) {
+    warnings.push(`Select a dowel bar for ${missingBar.join(' and ')} — a qty without a bar is priced at 0 kg.`);
   }
-  let warn = '';
-  if (mode !== 'exclude' && dowels.weight <= 0) {
-    warn = estimateFromBars
-      ? 'Dowels are set to Estimate but the longitudinal bars (qty and bar type) are not filled in — dowels are priced at 0 kg.'
-      : 'Dowels are included but the result is 0 kg — check qty, bar type, sets per column or total weight.';
+  if (useTotalKg && $('colDowelTotalKgBasis').value === 'group' && num('colDowelTotalKg') > 0 && !(groupQty > 0)) {
+    warnings.push('Enter the number of columns in the group (Geometry) — the whole-group dowel weight is divided by it.');
+  } else if (mode !== 'exclude' && dowels.weight <= 0 && !missingBar.length) {
+    warnings.push(isEstimate && basis === 'matchLongBars'
+      ? 'Dowels are set to match the longitudinal bars, but those bars (qty and bar type) are not filled in — dowels are priced at 0 kg.'
+      : 'Dowels are included but the result is 0 kg — check qty, bar type, sets per column or total weight.');
   }
-  if (warn) warnings.push(warn);
   $('colDowelWarn').innerHTML = warnings.map(w => `<div class="warn-box">${w}</div>`).join('');
   return dowels;
 }
@@ -1827,7 +1893,7 @@ $('wWasteApplyAllBtn').addEventListener('click', ()=>{
 });
 $('colWasteApplyAllBtn').addEventListener('click', ()=>{
   const pct = parseFloat($('colWasteApplyAllPct').value)||0;
-  const map = { colWasteConcreteField:'colWasteConcrete', colWasteSteelField:'colWasteSteel', colWasteDowelField:'colWasteDowel' };
+  const map = { colWasteConcreteField:'colWasteConcrete', colWasteSteelField:'colWasteSteel' };
   Object.entries(map).forEach(([fieldId, inputId])=>{
     if($(fieldId).style.display !== 'none') $(inputId).value = pct;
   });
@@ -2036,8 +2102,9 @@ const COL_SNAPSHOT_FIELDS = ['colGroupId','colRefDetail','colWidthMm','colDepthM
   'colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigQtyOther','colLigBar',
   'colExtraClosedTieQty','colExtraClosedTiePerimeterMm','colDowelMode','colDowelBar','colDowelManualQty',
   'colDowelLengthOverride','colDowelManualInput','colDowelManualQty2','colDowelBar2','colDowelSets',
-  'colDowelTotalKg','colLiftingQty','colAccessoriesQty','colUseCorrectedFormwork','colFormworkMultiplier',
-  'colWasteConcrete','colWasteSteel','colWasteDowel'];
+  'colDowelTotalKg','colDowelEstimateBasis','colDowelAssumedQty','colDowelAssumedBar','colDowelLength1','colDowelLength2',
+  'colDowelTotalKgBasis','colLiftingQty','colAccessoriesQty','colUseCorrectedFormwork','colFormworkMultiplier',
+  'colWasteConcrete','colWasteSteel'];
 const WALLS_SNAPSHOT_FIELDS = ['wElementType','wRefDetail','wArea','wThickness','wNumPanels','wAvgPanelHeight',
   'wConcreteType','wHasOpenings','wOpeningArea','wNumOpenings','wReoRate','wExtraSteelKg','wReoMode','wApplyLap',
   'wDowelsEnabled','wDowelMethod','wDowelBar','wDowelSpacing','wDowelLengthOverride','wDowelManualWeight',
@@ -2045,7 +2112,30 @@ const WALLS_SNAPSHOT_FIELDS = ['wElementType','wRefDetail','wArea','wThickness',
   'wWasteConcrete','wWasteSteel','wWasteTrimmer','wWasteUBar','wWasteMesh','wWasteReoRate','wWasteRipbox'];
 
 const COL_DOWEL_DEFAULTS = { colDowelManualInput:'bars', colDowelManualQty2:'0', colDowelBar2:'',
-  colDowelSets:'1', colDowelTotalKg:'0' };
+  colDowelSets:'1', colDowelTotalKg:'0', colDowelEstimateBasis:'matchLongBars', colDowelAssumedQty:'4',
+  colDowelAssumedBar:'', colDowelLength1:'0', colDowelLength2:'0', colDowelTotalKgBasis:'group' };
+
+// Groups saved by earlier versions of the Dowels section carry their inputs in the
+// old fields; map them onto the current ones so they reopen with the same result.
+function migrateLegacyColumnDowels(raw){
+  if (!raw) return;
+  if (!('colDowelEstimateBasis' in raw) && raw.colDowelMode === 'estimatePerLongBar') {
+    const basis = raw.colSteelMode === 'barDetail' ? 'matchLongBars' : 'assumedBar';
+    $('colDowelEstimateBasis').value = basis;
+    $('colDowelEstimateBasis').dataset.preferred = basis;
+    if (basis === 'assumedBar') {
+      $('colDowelAssumedQty').value = raw.colDowelManualQty || '0';
+      $('colDowelAssumedBar').value = raw.colDowelBar || '';
+    }
+  }
+  // The total weight used to be per column only.
+  if (!('colDowelTotalKgBasis' in raw)) $('colDowelTotalKgBasis').value = 'column';
+  // Detailed bars used to share one length override.
+  if (!('colDowelLength1' in raw) && raw.colDowelMode === 'manual' && parseFloat(raw.colDowelLengthOverride) > 0) {
+    $('colDowelLength1').value = raw.colDowelLengthOverride;
+    $('colDowelLength2').value = raw.colDowelLengthOverride;
+  }
+}
 
 function snapshotFields(ids){
   const snap = {};
@@ -2250,7 +2340,9 @@ $('summaryTable').addEventListener('click', async (e)=>{
       // Groups saved before the dowel rework don't carry these fields — reset them to
       // defaults first so they don't inherit values from whatever was on screen.
       Object.entries(COL_DOWEL_DEFAULTS).forEach(([id, v]) => { $(id).value = v; });
+      $('colDowelEstimateBasis').dataset.preferred = COL_DOWEL_DEFAULTS.colDowelEstimateBasis;
       restoreFields(g.raw);
+      migrateLegacyColumnDowels(g.raw);
       colConsumablesList = g.rawConsumables ? JSON.parse(JSON.stringify(g.rawConsumables)) : [];
       buildColConsumables();
       // Restore which geometry sub-block is visible, matching the restored mode.
@@ -2335,12 +2427,12 @@ $('colAddToSummary').addEventListener('click', async (e)=>{
       'Additional Closed Ties Qty': $('colExtraClosedTieQty').value, 'Additional Closed Tie Perimeter (mm)': $('colExtraClosedTiePerimeterMm').value,
       'Dowel Mode': $('colDowelMode').value,
       'Dowel Assumption': cost.dowelAssumption || 'n/a',
-      'Dowel Weight per Column (kg, before waste)': (cost.dowelWeight||0).toFixed(2),
+      'Dowel Weight per Column (kg, no waste)': (cost.dowelWeight||0).toFixed(2),
       'Lifting Points': $('colLiftingQty').value, 'Special Accessories': $('colAccessoriesQty').value,
       'Formwork Area Correction Used': $('colUseCorrectedFormwork').value,
       'Column Labour Rate Multiplier': $('colUseCorrectedFormwork').value==='yes' ? $('colFormworkMultiplier').value : 'n/a',
       'Additional Consumables': colConsumablesList.filter(it=>(it.label||'').trim()).map(it=>it.label).join(', ') || 'None',
-      'Waste % — Concrete': $('colWasteConcrete').value, 'Waste % — Steel': $('colWasteSteel').value, 'Waste % — Dowels': $('colWasteDowel').value,
+      'Waste % — Concrete': $('colWasteConcrete').value, 'Waste % — Steel': $('colWasteSteel').value,
     },
     rates: { 'Concrete': costDict[$('colConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
