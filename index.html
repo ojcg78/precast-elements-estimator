@@ -539,7 +539,6 @@ details[open] > summary.sub-summary::before{ content:'▾'; }
         <div class="grid4" style="margin-top:10px;">
           <div class="field" id="colWasteConcreteField" style="display:none;"><label>Concrete</label><input type="number" id="colWasteConcrete" value="0"></div>
           <div class="field" id="colWasteSteelField" style="display:none;"><label>Reinforcing steel</label><input type="number" id="colWasteSteel" value="0"></div>
-          <div class="field" id="colWasteDowelField" style="display:none;"><label>Dowels</label><input type="number" id="colWasteDowel" value="0"></div>
         </div>
         <details style="margin-top:14px;"><summary class="sub-summary">Formwork area correction (optional)<span class="hint" tabindex="0" aria-label="Help">?<span class="bubble">Off by default. Columns are usually cast lying on the bed like a beam: the bed face and open top face need no formwork, only the two side faces do. The traditional method (default) uses the full 4-side perimeter instead. Turning this on switches Wages/Shopdrawings/Formwork/Patching to the real 2-face area, scaled by the multiplier below.</span></span></summary>
           <div class="grid4" style="margin-top:10px;">
@@ -1164,7 +1163,8 @@ function calculateColumnCost(c, costDict) {
   const testingCost = c.volumePerColumn * g('Concrete Testing');
   const steelQty = c.reoWeightUsed * (1 + c.wasteSteel / 100);
   const steelCost = steelQty * g('Steel Bars');
-  const dowelQtyKg = c.dowelWeight * (1 + c.wasteDowel / 100);
+  // No waste on dowels: they're cut to length for the job.
+  const dowelQtyKg = c.dowelWeight;
   const dowelCost = dowelQtyKg * g('Steel Bars');
   const liftingCost = c.liftingQty * g('Lifting');
   const accessoriesCost = c.accessoriesQty * g('Special Accessories');
@@ -1488,7 +1488,6 @@ function calcColumns(){
   updateWasteVisibility({
     'colWasteConcreteField': volumePerColumn > 0,
     'colWasteSteelField': reo.reoWeightUsed > 0,
-    'colWasteDowelField': dowels.weight > 0,
   }, 'colWasteApplyAllRow', 'colWasteNoneMsg');
 
   const consumables = {};
@@ -1500,7 +1499,6 @@ function calcColumns(){
     volumePerColumn, concreteType: $('colConcreteType').value,
     wasteConcrete: parseFloat($('colWasteConcrete').value)||0,
     wasteSteel: parseFloat($('colWasteSteel').value)||0,
-    wasteDowel: parseFloat($('colWasteDowel').value)||0,
     reoWeightUsed: reo.reoWeightUsed, dowelWeight: dowels.weight,
     liftingQty: parseFloat($('colLiftingQty').value)||0,
     accessoriesQty: parseFloat($('colAccessoriesQty').value)||0,
@@ -1556,7 +1554,7 @@ function calcColumns(){
  'colReoRateGiven','colLongQty','colLongBar','colLongQty2','colLongBar2','colApplyLap','colTieBar','colTieSpacingMm','colTiePerimeterMm','colLigQty','colLigQtyOther','colLigBar','colExtraClosedTieQty','colExtraClosedTiePerimeterMm',
  'colDowelMode','colDowelManualQty','colDowelBar','colDowelLengthOverride',
  'colDowelManualQty2','colDowelBar2','colDowelSets','colDowelTotalKg',
- 'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel','colWasteDowel',
+ 'colLiftingQty','colAccessoriesQty','colWasteConcrete','colWasteSteel',
  'colFormworkMultiplier'
 ].forEach(id=> $(id).addEventListener('input', calcColumns));
 $('colDowelMode').addEventListener('change', calcColumns);
@@ -1827,7 +1825,7 @@ $('wWasteApplyAllBtn').addEventListener('click', ()=>{
 });
 $('colWasteApplyAllBtn').addEventListener('click', ()=>{
   const pct = parseFloat($('colWasteApplyAllPct').value)||0;
-  const map = { colWasteConcreteField:'colWasteConcrete', colWasteSteelField:'colWasteSteel', colWasteDowelField:'colWasteDowel' };
+  const map = { colWasteConcreteField:'colWasteConcrete', colWasteSteelField:'colWasteSteel' };
   Object.entries(map).forEach(([fieldId, inputId])=>{
     if($(fieldId).style.display !== 'none') $(inputId).value = pct;
   });
@@ -2037,7 +2035,7 @@ const COL_SNAPSHOT_FIELDS = ['colGroupId','colRefDetail','colWidthMm','colDepthM
   'colExtraClosedTieQty','colExtraClosedTiePerimeterMm','colDowelMode','colDowelBar','colDowelManualQty',
   'colDowelLengthOverride','colDowelManualInput','colDowelManualQty2','colDowelBar2','colDowelSets',
   'colDowelTotalKg','colLiftingQty','colAccessoriesQty','colUseCorrectedFormwork','colFormworkMultiplier',
-  'colWasteConcrete','colWasteSteel','colWasteDowel'];
+  'colWasteConcrete','colWasteSteel'];
 const WALLS_SNAPSHOT_FIELDS = ['wElementType','wRefDetail','wArea','wThickness','wNumPanels','wAvgPanelHeight',
   'wConcreteType','wHasOpenings','wOpeningArea','wNumOpenings','wReoRate','wExtraSteelKg','wReoMode','wApplyLap',
   'wDowelsEnabled','wDowelMethod','wDowelBar','wDowelSpacing','wDowelLengthOverride','wDowelManualWeight',
@@ -2335,12 +2333,12 @@ $('colAddToSummary').addEventListener('click', async (e)=>{
       'Additional Closed Ties Qty': $('colExtraClosedTieQty').value, 'Additional Closed Tie Perimeter (mm)': $('colExtraClosedTiePerimeterMm').value,
       'Dowel Mode': $('colDowelMode').value,
       'Dowel Assumption': cost.dowelAssumption || 'n/a',
-      'Dowel Weight per Column (kg, before waste)': (cost.dowelWeight||0).toFixed(2),
+      'Dowel Weight per Column (kg, no waste)': (cost.dowelWeight||0).toFixed(2),
       'Lifting Points': $('colLiftingQty').value, 'Special Accessories': $('colAccessoriesQty').value,
       'Formwork Area Correction Used': $('colUseCorrectedFormwork').value,
       'Column Labour Rate Multiplier': $('colUseCorrectedFormwork').value==='yes' ? $('colFormworkMultiplier').value : 'n/a',
       'Additional Consumables': colConsumablesList.filter(it=>(it.label||'').trim()).map(it=>it.label).join(', ') || 'None',
-      'Waste % — Concrete': $('colWasteConcrete').value, 'Waste % — Steel': $('colWasteSteel').value, 'Waste % — Dowels': $('colWasteDowel').value,
+      'Waste % — Concrete': $('colWasteConcrete').value, 'Waste % — Steel': $('colWasteSteel').value,
     },
     rates: { 'Concrete': costDict[$('colConcreteType').value]||0, 'Concrete Testing': costDict['Concrete Testing']||0,
       'Steel Bars': costDict['Steel Bars']||0, 'Lifting': costDict['Lifting']||0, 'Special Accessories': costDict['Special Accessories']||0,
